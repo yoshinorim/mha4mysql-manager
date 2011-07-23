@@ -1,0 +1,14 @@
+Makefile
+inc/
+.*.sw[pon]
+*.bak
+*.old
+*.orig
+*.gz
+*.rpm
+Build
+_build/
+META.yml
+MYMETA.yml
+blib/
+pm_to_blib
