@@ -1,0 +1,445 @@
+#!/usr/bin/env perl
+
+#  Copyright (C) 2011 DeNA Co.,Ltd.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#  Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+## Note: This is a sample script and is not complete. Modify the script based on your environment.
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long;
+use Pod::Usage;
+use Net::Telnet;
+use MHA::ManagerConst;
+use MHA::ManagerUtil;
+
+my $SSH_STOP_OK           = 10;
+my $COMMAND_NOT_SUPPORTED = 20;
+my $ILO_ADMIN             = 'Administrator';
+my $DRAC_ADMIN            = 'root';
+my $PASSWORD              = 'xxx';
+my $max_retries           = 10;
+
+exit &main();
+
+sub get_power_status_drac_internal {
+  my $telnet = shift;
+  my $prompt = shift;
+  $telnet->print("racadm serveraction powerstatus");
+  ($_) = $telnet->waitfor($prompt);
+  my $power_state = "void";
+  my @cmd_out     = split /\n/;
+
+  # discard command sent to DRAC
+  $_ = shift @cmd_out;
+
+  #strip ansi control chars
+  s/\e\[(([0-9]+;)*[0-9]+)*[ABCDfHJKmsu]//g;
+  s/^.*\x0D//;
+  foreach (@cmd_out) {
+    s/^\s+//g;
+    s/\s+$//g;
+    if (m/^Server power status: (\w+)/) {
+      $power_state = lc($1);
+      last;
+    }
+  }
+  return $power_state;
+}
+
+sub power_off_drac_internal {
+  my $telnet = shift;
+  my $prompt = shift;
+  $telnet->print("racadm serveraction powerdown");
+  $telnet->waitfor($prompt);
+}
+
+sub power_on_drac_internal {
+  my $telnet = shift;
+  my $prompt = shift;
+  $telnet->print("racadm serveraction powerup");
+  $telnet->waitfor($prompt);
+}
+
+sub login_drac_internal {
+  my $drac_addr = shift;
+  my $prompt    = '/admin1|\$/';
+  my $telnet    = new Net::Telnet(
+    Timeout => 10,
+    Prompt  => $prompt,
+  );
+  $telnet->open($drac_addr);
+  $telnet->waitfor('/login/i');
+  $telnet->print($DRAC_ADMIN);
+  $telnet->waitfor('/password/i');
+  $telnet->print($PASSWORD);
+  $telnet->waitfor($prompt);
+
+  return ( $telnet, $prompt );
+}
+
+sub power_off_drac {
+  my $drac_addr    = shift;
+  my $power_status = "void";
+  local $@;
+  eval {
+    my ( $telnet, $prompt ) = login_drac_internal($drac_addr);
+    power_off_drac_internal( $telnet, $prompt );
+    $power_status = get_power_status_drac_internal( $telnet, $prompt );
+    $telnet->close;
+  };
+  if ($@) {
+    warn $@;
+  }
+  return $power_status;
+}
+
+sub power_on_drac {
+  my $drac_addr    = shift;
+  my $power_status = "void";
+  local $@;
+  eval {
+    my ( $telnet, $prompt ) = login_drac_internal($drac_addr);
+    power_on_drac_internal( $telnet, $prompt );
+    $power_status = get_power_status_drac_internal( $telnet, $prompt );
+    $telnet->close;
+  };
+  if ($@) {
+    warn $@;
+  }
+  return $power_status;
+}
+
+sub power_status_drac {
+  my $drac_addr    = shift;
+  my $power_status = "void";
+  local $@;
+  eval {
+    my ( $telnet, $prompt ) = login_drac_internal($drac_addr);
+    $power_status = get_power_status_drac_internal( $telnet, $prompt );
+    $telnet->close;
+  };
+  if ($@) {
+    warn $@;
+  }
+  return $power_status;
+}
+
+sub power_status_ilo {
+  my $ilo_addr     = shift;
+  my $power_status = "void";
+  local $@;
+  eval {
+    my $ipmi_out =
+`ipmitool -H $ilo_addr -U $ILO_ADMIN -P $PASSWORD -I lanplus  power status`;
+    die
+"Failed to get power status from ipmitool. Maybe you need to upgrade ILO firmware version.\n"
+      if ($?);
+    chomp($ipmi_out);
+    if ( $ipmi_out =~ m/^Chassis Power is (\w+)/ ) {
+      $power_status = lc($1);
+    }
+  };
+  if ($@) {
+    warn $@;
+  }
+  return $power_status;
+}
+
+sub power_on_ilo {
+  my $ilo_addr     = shift;
+  my $power_status = "void";
+  local $@;
+  eval {
+    $power_status = power_status_ilo($ilo_addr);
+    if ( $power_status ne "off" ) {
+      die "Power from ipmitool is already on.\n" if ( $power_status eq "on" );
+      return;
+    }
+    `ipmitool -H $ilo_addr -U $ILO_ADMIN -P $PASSWORD -I lanplus  power on`;
+    $power_status = power_status_ilo($ilo_addr);
+  };
+  if ($@) {
+    warn $@;
+  }
+  return $power_status;
+}
+
+sub power_off_ilo {
+  my $ilo_addr     = shift;
+  my $power_status = "void";
+  local $@;
+  eval {
+    $power_status = power_status_ilo($ilo_addr);
+    if ( $power_status ne "on" ) {
+      die "Power from ipmitool is already off.\n" if ( $power_status eq "off" );
+      return;
+    }
+    `ipmitool -H $ilo_addr -U $ILO_ADMIN -P $PASSWORD -I lanplus  power off`;
+    $power_status = power_status_ilo($ilo_addr);
+  };
+  if ($@) {
+    warn $@;
+  }
+  return $power_status;
+}
+
+sub get_power_status {
+  my ( $admin_addr, $server_type ) = @_;
+  my $power_status = "void";
+  if ( $server_type eq "ilo" ) {
+    $power_status = power_status_ilo($admin_addr);
+  }
+  elsif ( $server_type eq "drac" ) {
+    $power_status = power_status_drac($admin_addr);
+  }
+  return $power_status;
+}
+
+sub stop {
+  my ( $real_host, $admin_addr, $server_type ) = @_;
+
+  my $power_status = "void";
+  if ( $server_type eq "ilo" ) {
+    $power_status = power_off_ilo($admin_addr);
+  }
+  elsif ( $server_type eq "drac" ) {
+    $power_status = power_off_drac($admin_addr);
+  }
+
+  if ( $power_status eq "off" ) {
+    print "Power of $real_host was successfully turned off.\n";
+    return 0;
+  }
+  elsif ( $power_status ne "on" ) {
+    return $COMMAND_NOT_SUPPORTED;
+  }
+
+  my $retry_count = 0;
+  while ( $retry_count < $max_retries ) {
+    $power_status = get_power_status( $admin_addr, $server_type );
+    last if ( $power_status eq "off" );
+    print
+"Waiting until power status becomes 'off'. Current status is $power_status ...\n";
+    sleep 3;
+    $retry_count++;
+  }
+
+  if ( $power_status eq "off" ) {
+    print "Power of $real_host was successfully turned off.\n";
+    return 0;
+  }
+  else {
+    print
+      "Power of $real_host was not turned off. Check the host for detail.\n";
+    return 1;
+  }
+}
+
+sub stopssh {
+  my ( $ssh_user, $real_host, $real_ip, $pid_file ) = @_;
+  my $ssh_user_host = $ssh_user . '@';
+  if ($real_ip) {
+    $ssh_user_host .= $real_ip;
+  }
+  else {
+    $ssh_user_host .= $real_host;
+  }
+
+  my $command;
+  my ( $high_ret, $low_ret );
+  if ($pid_file) {
+    $command =
+"\"if [ ! -e $pid_file ]; then exit 1; fi; pid=\\\`cat $pid_file\\\`; rm -f $pid_file; kill -9 \\\$pid; a=\\\`ps ax | grep $pid_file | grep -v grep | wc | awk {'print \\\$1'}\\\`; if [ \"a\\\$a\" = \"a0\" ]; then exit 10; fi; sleep 1; a=\\\`ps ax | grep $pid_file | grep -v grep | wc | awk {'print \\\$1'}\\\`; if [ \"a\\\$a\" = \"a0\" ]; then exit 10; else exit 1; fi\"";
+    ( $high_ret, $low_ret ) = MHA::ManagerUtil::exec_system(
+      "ssh $ssh_user_host $MHA::ManagerConst::SSH_OPT_CHECK $command");
+    if ( $high_ret == $SSH_STOP_OK && $low_ret == 0 ) {
+      print "ssh reachable. mysqld stopped. power off not needed.\n";
+      return $high_ret;
+    }
+    print "Killing mysqld instance based on $pid_file failed.\n";
+  }
+
+  print "Killing all mysqld instances on $real_host..\n";
+  $command =
+"\"killall -9 mysqld mysqld_safe; a=\\\`pidof mysqld\\\`; if [ \"a\\\$a\" = \"a\" ]; then exit 10; fi; sleep 1; a=\\\`pidof mysqld\\\`; if [ \"a\\\$a\" = \"a\" ]; then exit 10; else exit 1; fi\"";
+  ( $high_ret, $low_ret ) = MHA::ManagerUtil::exec_system(
+    "ssh $ssh_user_host $MHA::ManagerConst::SSH_OPT_CHECK $command");
+  if ( $high_ret == $SSH_STOP_OK && $low_ret == 0 ) {
+    print "ssh reachable. mysqld stopped. power off not needed.\n";
+    return $high_ret;
+  }
+  else {
+    print
+      "ssh NOT reachable. Power off needed (rc1=$high_ret, rc2=$low_ret).\n";
+    return 1;
+  }
+}
+
+sub start {
+  my ( $real_host, $admin_addr, $server_type ) = @_;
+
+  my $power_status = "void";
+  if ( $server_type eq "ilo" ) {
+    $power_status = power_on_ilo($admin_addr);
+  }
+  elsif ( $server_type eq "drac" ) {
+    $power_status = power_on_drac($admin_addr);
+  }
+  if ( $power_status eq "on" ) {
+    print "Power of $real_host was successfully turned on.\n";
+    return 0;
+  }
+  elsif ( $power_status ne "off" ) {
+    return $COMMAND_NOT_SUPPORTED;
+  }
+
+  my $retry_count = 0;
+
+  while ( $power_status ne "on" && $retry_count < $max_retries ) {
+    $power_status = get_power_status( $admin_addr, $server_type );
+    last if ( $power_status eq "on" );
+    print
+"Waiting until power status becomes 'on'. Current status is $power_status ...\n";
+    sleep 3;
+    $retry_count++;
+  }
+
+  if ( $power_status eq "on" ) {
+    print "Power of $real_host was successfully turned on.\n";
+    return 0;
+  }
+  else {
+    print "Power of $real_host was not turned on. Check the host for detail.\n";
+    return 1;
+  }
+}
+
+sub status {
+  my ( $real_host, $admin_addr, $server_type ) = @_;
+  my $power_status = get_power_status( $admin_addr, $server_type );
+  print "Current power status on $real_host : $power_status\n";
+  if ( $power_status eq "on" ) {
+    return 0;
+  }
+  elsif ( $power_status eq "off" ) {
+    return 0;
+  }
+  else {
+    return $COMMAND_NOT_SUPPORTED;
+  }
+}
+
+# If ssh is reachable and mysqld process does not exist, exit with 2 and
+# do not power off. If ssh is not reachable, do power off and exit with 0
+# if successful. Otherwise exit with 1.
+sub main {
+
+  my ( $command, $ssh_user, $host, $ip, $port, $pid_file, $help );
+  GetOptions(
+    'command=s'  => \$command,
+    'ssh_user=s' => \$ssh_user,
+    'host=s'     => \$host,
+    'ip=s'       => \$ip,
+    'port=i'     => \$port,
+    'pid_file=s' => \$pid_file,
+    'help'       => \$help,
+  );
+
+  if ($help) {
+    pod2usage(0);
+  }
+
+  pod2usage(1) unless ($command);
+
+  my $rc            = 1;
+  my $ssh_stop_fail = 0;
+
+  if ( $command eq "stopssh" || $command eq "stopssh2" ) {
+    pod2usage(1) unless ($ssh_user);
+    pod2usage(1) unless ($host);
+    $rc = stopssh( $ssh_user, $host, $ip, $pid_file );
+    if ( $rc == $SSH_STOP_OK ) {
+      exit $rc;
+    }
+    else {
+      exit 1 if ( $command eq "stopssh2" );
+      $ssh_stop_fail = 1;
+    }
+  }
+
+  # Get server type (ilo/drac, etc) and administrative IP address.
+  my ( $admin_addr, $server_type ) = XXXXXXXXXXXXXX( $host, $ip );
+  if ( $command eq "start" ) {
+    $rc = start( $host, $admin_addr, $server_type );
+  }
+  elsif ( $command eq "stop" || $ssh_stop_fail ) {
+    $rc = stop( $host, $admin_addr, $server_type );
+  }
+  elsif ( $command eq "status" ) {
+    $rc = status( $host, $admin_addr, $server_type );
+  }
+  else {
+    pod2usage(1);
+  }
+
+  # Do other way to stop host
+  if ( $rc == $COMMAND_NOT_SUPPORTED ) {
+    $rc = XXXXXXXXXXXXXX( $command, $host, $ip );
+  }
+
+  if ( $rc == 0 ) {
+    exit 0;
+  }
+  else {
+    exit 1;
+  }
+}
+
+#############################################################################
+
+=head1 NAME
+
+Main purpose of this command is node fencing so that split brain never happens.
+
+=head1 SYNOPSIS
+
+# power off
+
+power_manager --command=stop --host=master_server
+
+# killing mysqld and mysqld_safe at first. If not successful, forcing power off
+
+power_manager --command=stopssh --host=master_server --ssh_user=root
+
+# killing mysqld and mysqld_safe. If not successful, just exit.
+
+power_manager --command=stopssh2 --host=master_server --ssh_user=root
+
+# killing mysqld with specified pid file. This is useful when you run multiple MySQL instances and want to stop only specified instance
+
+power_manager --command=stopssh --host=master_server --ssh_user=root --pid_file=/var/lib/mysql/mysqld.pid
+
+# power on
+
+power_manager --command=start --host=master_server
+
+# checking power status
+
+power_manager --command=status --host=master_server
+

@@ -1,0 +1,89 @@
+#!/usr/bin/env perl
+
+#  Copyright (C) 2011 DeNA Co.,Ltd.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#  Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long qw(:config pass_through);
+use Pod::Usage;
+use MHA::MasterMonitor;
+use MHA::MasterFailover;
+use MHA::MasterRotate;
+use MHA::ManagerConst;
+
+my $master_state = "";
+my $help;
+my $version;
+
+$| = 1;
+
+GetOptions(
+  'help'           => \$help,
+  'version'        => \$version,
+  'master_state=s' => \$master_state
+);
+
+my $exit_code = 1;
+
+if ($version) {
+  print "masterha_master_switch version $MHA::ManagerConst::VERSION.\n";
+  exit 0;
+}
+
+if ($help) {
+  pod2usage(0);
+}
+
+if ( $master_state eq "dead" ) {
+  $exit_code = MHA::MasterFailover::main(@ARGV);
+}
+elsif ( $master_state eq "alive" ) {
+  $exit_code = MHA::MasterRotate::main(@ARGV);
+}
+else {
+  pod2usage(1);
+}
+exit $exit_code;
+
+# ############################################################################
+# Documentation
+# ############################################################################
+
+=pod
+
+=head1 NAME
+
+masterha_master_switch - Switching MySQL master server to one of other slave servers
+
+=head1 SYNOPSIS
+
+# For master failover
+
+masterha_master_switch --master_state=dead --global_conf=/etc/masterha_default.cnf --conf=/usr/local/masterha/conf/app1.cnf --dead_master_host=host1 
+
+# For online master switch
+
+masterha_master_switch --master_state=alive --global_conf=/etc/masterha_default.cnf --conf=/usr/local/masterha/conf/app1.cnf
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_master_switch) for details.
+
+=head1 DESCRIPTION
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_master_switch) for details.
+

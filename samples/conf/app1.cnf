@@ -1,0 +1,18 @@
+[server default]
+manager_workdir=/var/log/masterha/app1
+manager_log=/var/log/masterha/app1/manager.log
+
+[server1]
+hostname=host1
+candidate_master=1
+
+[server2]
+hostname=host2
+candidate_master=1
+
+[server3]
+hostname=host3
+
+[server4]
+hostname=host4
+no_master=1

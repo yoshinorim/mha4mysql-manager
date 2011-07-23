@@ -1,0 +1,78 @@
+#!/usr/bin/env perl
+
+#  Copyright (C) 2011 DeNA Co.,Ltd.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#  Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+use strict;
+use warnings FATAL => 'all';
+
+use Pod::Usage;
+use Getopt::Long qw(:config pass_through);
+use MHA::MasterMonitor;
+use MHA::ManagerConst;
+
+my $help;
+my $version;
+
+$| = 1;
+
+GetOptions(
+  'help'    => \$help,
+  'version' => \$version,
+);
+
+if ($version) {
+  print "masterha_check_repl version $MHA::ManagerConst::VERSION.\n";
+  exit 0;
+}
+
+if ($help) {
+  pod2usage(0);
+}
+
+my $exit_code = 1;
+$exit_code = MHA::MasterMonitor::main( "--interactive=0", "--check_only",
+  "--check_repl_health", @ARGV );
+
+if ( $exit_code == 0 ) {
+  print "\nMySQL Replication Health is OK.\n";
+}
+else {
+  print "\nMySQL Replication Health is NOT OK!\n";
+}
+exit $exit_code;
+
+# ############################################################################
+# Documentation
+# ############################################################################
+
+=pod
+
+=head1 NAME
+
+masterha_check_repl - Checking MySQL replication health
+
+=head1 SYNOPSIS
+
+masterha_check_repl --conf=/usr/local/masterha/conf/app1.cnf 
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_check_repl) for details.
+
+=head1 DESCRIPTION
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_check_repl) for details.
+

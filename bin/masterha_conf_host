@@ -1,0 +1,127 @@
+#!/usr/bin/env perl
+
+#  Copyright (C) 2011 DeNA Co.,Ltd.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#  Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long;
+use Pod::Usage;
+use MHA::Config;
+
+my $help;
+my $version;
+my $command;
+my $conf;
+my $block;
+my $hostname;
+my $params;
+
+GetOptions(
+  'help'       => \$help,
+  'version'    => \$version,
+  'command=s'  => \$command,
+  'conf=s'     => \$conf,
+  'block=s'    => \$block,
+  'hostname=s' => \$hostname,
+  'params=s'   => \$params,
+);
+
+if ($version) {
+  print "masterha_conf_host version $MHA::ManagerConst::VERSION.\n";
+  exit 0;
+}
+
+if ($help) {
+  pod2usage(0);
+}
+
+if ( !$command ) {
+  die "--command=<add|remove> must be set.\n";
+}
+
+if ( !$conf ) {
+  die "--conf=<target_conf_file> must be set.\n";
+}
+
+if ( !-f $conf ) {
+  die "$conf does not exist!\n";
+}
+
+if ($block) {
+  if ( $block !~ m/^server/ ) {
+    $block = "server" . $block;
+  }
+}
+else {
+  $block = "server_" . $hostname if ($hostname);
+}
+unless ($block) {
+  die "--block=<block_name> must be set.\n";
+}
+
+if ( $command eq "add" ) {
+  unless ($hostname) {
+    die "--hostname=<new_host_name> must be set.\n";
+  }
+  my @param_array = split( /;/, $params ) if ($params);
+  MHA::Config::add_block_and_save( $conf, $block, $hostname, \@param_array );
+}
+elsif ( $command eq "delete" || $command eq "remove" ) {
+  MHA::Config::delete_block_and_save( $conf, $block );
+}
+else {
+  pod2usage(1);
+}
+
+# ############################################################################
+# Documentation
+# ############################################################################
+
+=pod
+
+=head1 NAME
+
+masterha_conf_host - Adding new host entry to, or removing existing host entry from a config file
+
+=head1 SYNOPSIS
+
+masterha_conf_host --command=add --conf=/etc/conf/masterha/app1.cnf --hostname=db101
+
+ The following lines will be added to the conf file.
+ [server_db101]
+ hostname=db101
+
+masterha_conf_host --command=add --conf=/etc/conf/masterha/app1.cnf --hostname=db101 --block=100 --params="no_master=1;ignore_fail=1"
+
+ The following lines will be added to the conf file.
+ [server_100]
+ hostname=db101
+ no_master=1
+ ignore_fail=1
+
+masterha_conf_host --command=delete --conf=/etc/conf/masterha/app1.cnf --block=server100
+
+ Then entire block [server100] will be removed.
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_conf_host) for details.
+
+=head1 DESCRIPTION
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_conf_host) for details.
+

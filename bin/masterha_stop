@@ -1,0 +1,68 @@
+#!/usr/bin/env perl
+
+#  Copyright (C) 2011 DeNA Co.,Ltd.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#  Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long qw(:config pass_through);
+use Pod::Usage;
+use MHA::ManagerConst;
+use MHA::ManagerAdminWrapper;
+
+my $help;
+my $version;
+
+$| = 1;
+
+GetOptions(
+  'help'    => \$help,
+  'version' => \$version,
+);
+
+if ($version) {
+  print "masterha_stop version $MHA::ManagerConst::VERSION.\n";
+  exit 0;
+}
+
+if ($help) {
+  pod2usage(0);
+}
+
+exit MHA::ManagerAdminWrapper::stop_manager(@ARGV);
+
+# ############################################################################
+# Documentation
+# ############################################################################
+
+=pod
+
+=head1 NAME
+
+masterha_stop - Stopping MHA Manager process
+
+=head1 SYNOPSIS
+
+masterha_stop --conf=/usr/local/masterha/conf/app1.cnf 
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_stop) for details.
+
+=head1 DESCRIPTION
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/masterha_stop) for details.
+

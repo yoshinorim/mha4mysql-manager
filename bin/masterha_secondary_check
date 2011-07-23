@@ -1,0 +1,118 @@
+#!/usr/bin/env perl
+
+#  Copyright (C) 2011 DeNA Co.,Ltd.
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#  Foundation, Inc.,
+#  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+use strict;
+use warnings FATAL => 'all';
+
+use English qw(-no_match_vars);
+use Getopt::Long;
+use Pod::Usage;
+use MHA::ManagerConst;
+
+my @monitoring_servers;
+my ( $help, $version, $ssh_user, $master_host, $master_ip, $master_port );
+
+$| = 1;
+GetOptions(
+  'help'             => \$help,
+  'version'          => \$version,
+  'secondary_host=s' => \@monitoring_servers,
+  'user=s'           => \$ssh_user,
+  'master_host=s'    => \$master_host,
+  'master_ip=s'      => \$master_ip,
+  'master_port=i'    => \$master_port,
+);
+
+if ($version) {
+  print "masterha_secondary_check version $MHA::ManagerConst::VERSION.\n";
+  exit 0;
+}
+
+if ($help) {
+  pod2usage(0);
+}
+
+unless ($master_host) {
+  pod2usage(1);
+}
+
+$ssh_user    = "root" unless ($ssh_user);
+$master_port = 3306   unless ($master_port);
+
+sub exit_by_signal {
+  exit 1;
+}
+local $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = \&exit_by_signal;
+
+# 0: master is not reachable from all monotoring servers
+# 1: unknown errors
+# 2: at least one of monitoring servers is not reachable from this script
+# 3: master is reachable from at least one of monitoring servers
+my $exit_code = 0;
+
+foreach my $monitoring_server (@monitoring_servers) {
+  my $ssh_user_host = $ssh_user . '@' . $monitoring_server;
+  my $command =
+      "ssh $MHA::ManagerConst::SSH_OPT_CHECK $ssh_user_host \"perl -e "
+    . "\\\"use IO::Socket::INET; my \\\\\\\$sock = IO::Socket::INET->new"
+    . "(PeerAddr => \\\\\\\"$master_host\\\\\\\", PeerPort=> $master_port, "
+    . "Proto =>'tcp', Timeout => 4); if(\\\\\\\$sock) { close(\\\\\\\$sock); "
+    . "exit 3; } exit 0;\\\" \"";
+  my $ret = system($command);
+  $ret = $ret >> 8;
+  if ( $ret == 0 ) {
+    print
+"Monitoring server $monitoring_server is reachable, Master is not reachable from $monitoring_server. OK.\n";
+    next;
+  }
+  if ( $ret == 3 ) {
+    print "Master is reachable from $monitoring_server!\n";
+    $exit_code = 3;
+    last;
+  }
+  else {
+    print "Monitoring server $monitoring_server is NOT reachable!\n";
+    $exit_code = 2;
+    last;
+  }
+}
+
+exit $exit_code;
+
+# ############################################################################
+# Documentation
+# ############################################################################
+
+=pod
+
+=head1 NAME
+
+masterha_secondary_check - Checking master availability from additional network routes
+
+=head1 SYNOPSIS
+
+masterha_secondary_check -s secondary_host1 -s secondary_host2 .. --user=ssh_username --master_host=host --master_ip=ip --master_port=port
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/Parameters#secondary_check_script) for details.
+
+=head1 DESCRIPTION
+
+See online reference (http://code.google.com/p/mysql-master-ha/wiki/Parameters#secondary_check_script) for details.
+
+

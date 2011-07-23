@@ -1,0 +1,12 @@
+[server default]
+user=root
+password=rootpass
+ssh_user=root
+master_binlog_dir= /var/lib/mysql,/var/log/mysql
+remote_workdir=/data/log/masterha
+secondary_check_script= masterha_secondary_check -s remote_host1 -s remote_host2
+heartbeat_interval=3
+# master_ip_failover_script= /script/masterha/master_ip_failover
+# shutdown_script= /script/masterha/power_manager
+# report_script= /script/masterha/send_report
+# master_ip_online_change_script= /script/masterha/master_ip_online_change
