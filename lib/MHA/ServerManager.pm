@@ -1157,7 +1157,7 @@ sub print_servers_migration_ascii {
     if ( $new_master->{node_label} );
   $str .= "\n";
   foreach my $slave (@alive_slaves) {
-    next if ( $slave->{hostname} eq $new_master->{hostname} );
+    next if ( $slave->{id} eq $new_master->{id} );
     $str .= " +--" . "$slave->{hostname}";
     $str .= " ($slave->{node_label})" if ( $slave->{node_label} );
     $str .= "\n";
