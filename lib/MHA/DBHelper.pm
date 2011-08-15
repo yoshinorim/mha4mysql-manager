@@ -554,10 +554,13 @@ sub read_all_relay_log($$) {
     while ( my $ref = $sth->fetchrow_hashref ) {
       my $user  = $ref->{User};
       my $state = $ref->{State};
-      if ( defined($user)
+      if (
+           defined($user)
         && $user eq "system user"
         && defined($state)
-        && $state =~ m/^Has read all relay log/ )
+        && ( $state =~ m/^Has read all relay log/
+          || $state =~ m/^Slave has read all relay log/ )
+        )
       {
         $status{Status} = 0;
         return %status;
