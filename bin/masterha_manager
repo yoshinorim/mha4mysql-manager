@@ -50,13 +50,15 @@ my @ORIG_ARGV = @ARGV;
 my ( $exit_code, $dead_master, $ssh_reachable ) =
   MHA::MasterMonitor::main( "--interactive=0", @ARGV );
 
-if ( ( $exit_code && $exit_code != $MHA::ManagerConst::MASTER_DEAD_RC )
-  || !$dead_master->{hostname}
+if ( $exit_code && $exit_code != $MHA::ManagerConst::MASTER_DEAD_RC ) {
+  exit $exit_code;
+}
+if ( !$dead_master->{hostname}
   || !$dead_master->{ip}
   || !$dead_master->{port}
   || !defined($ssh_reachable) )
 {
-  die;
+  exit 1;
 }
 
 @ARGV      = @ORIG_ARGV;
