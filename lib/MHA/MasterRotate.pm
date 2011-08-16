@@ -242,7 +242,7 @@ sub reject_update($$) {
   }
   else {
     print
-"master_ip_online_change_script is not defined. If you do not disable writes on the current master manually, applications can keep write on the master. Is it ok to proceed? (yes/NO): ";
+"master_ip_online_change_script is not defined. If you do not disable writes on the current master manually, applications keep writing on the current master. Is it ok to proceed? (yes/NO): ";
     $ret = <STDIN>;
     chomp($ret);
     if ( lc($ret) !~ /^y/ ) {
