@@ -169,7 +169,7 @@ sub power_on_ilo {
     $power_status = power_status_ilo($ilo_addr);
     if ( $power_status ne "off" ) {
       die "Power from ipmitool is already on.\n" if ( $power_status eq "on" );
-      return;
+      return $power_status;
     }
     `ipmitool -H $ilo_addr -U $ILO_ADMIN -P $PASSWORD -I lanplus  power on`;
     $power_status = power_status_ilo($ilo_addr);
@@ -188,7 +188,7 @@ sub power_off_ilo {
     $power_status = power_status_ilo($ilo_addr);
     if ( $power_status ne "on" ) {
       die "Power from ipmitool is already off.\n" if ( $power_status eq "off" );
-      return;
+      return $power_status;
     }
     `ipmitool -H $ilo_addr -U $ILO_ADMIN -P $PASSWORD -I lanplus  power off`;
     $power_status = power_status_ilo($ilo_addr);
