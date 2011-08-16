@@ -804,7 +804,7 @@ sub generate_diff_from_readpos {
   }
   $logger->info("Executing command: $command");
   return exec_ssh_child_cmd( $ssh_user_host, $command, $logger,
-    "$target->{hostname}.$target->{port}.work" );
+    "$g_workdir/$target->{hostname}_$target->{port}.work" );
 }
 
 # 0: no need to generate diff
@@ -996,7 +996,7 @@ sub gen_diff_from_exec_to_read {
       return 1;
     }
     my ( $high, $low ) = exec_ssh_child_cmd( $ssh_user_host, $command, $logger,
-      "$target->{hostname}.$target->{port}.work" );
+      "$g_workdir/$target->{hostname}_$target->{port}.work" );
     if ( $high eq '0' && $low eq '0' ) {
       return 0;
     }
@@ -1076,7 +1076,7 @@ sub apply_diff {
     return ( 1, 0 );
   }
   my ( $high, $low ) = exec_ssh_child_cmd( $ssh_user_host, $command, $logger,
-    "$target->{hostname}.$target->{port}.work" );
+    "$g_workdir/$target->{hostname}_$target->{port}.work" );
 
   $target->set_default_max_allowed_packet($logger);
   return ( $high, $low );
