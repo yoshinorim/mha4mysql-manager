@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings FATAL=>'all';
+
+my $testcase_name=$ARGV[0];
+my $expected_records=$ARGV[1];
+my $expected_hosts=$ARGV[2];
+
+unless($expected_hosts) {
+  $expected_hosts="h=127.0.0.1,P=10001 h=127.0.0.1,P=10002 h=127.0.0.1,P=10003 h=127.0.0.1,P=10004"
+}
+`mk-table-checksum  --databases=test $expected_hosts --count --trim > checksum.log`;
+
+my $checksum_uniq=`cat checksum.log | awk '{print \$7}' | grep -v CHECKSUM | uniq | wc  | awk {'print \$1}'`;
+chomp($checksum_uniq);
+
+if($checksum_uniq ne '1') {
+  open (FH, ">>checksum.log");
+  print FH "Checksum is not unique!\n";
+  close(FH);
+  &handle_fail();
+}
+
+my $num_rows=`cat checksum.log | awk '{print \$6}'  | grep -v COUNT | head -n 1`;
+chomp($num_rows);
+if($num_rows ne $expected_records) {
+  open (FH, ">>checksum.log");
+  print FH "Number of records $num_rows is not equal to expected records $expected_records!\n";
+  close(FH);
+  &handle_fail();
+}
+
+&handle_ok();
+
+sub handle_fail{
+  print "$testcase_name [Fail (checksum)]\n";
+  exit 1;
+}
+
+sub handle_ok{ 
+  print "$testcase_name [Pass]\n";
+  exit 1;
+}

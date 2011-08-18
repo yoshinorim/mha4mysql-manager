@@ -3,6 +3,7 @@ inc/
 .*.sw[pon]
 *.bak
 *.old
+*.log
 *.orig
 *.gz
 *.rpm
@@ -12,3 +13,4 @@ META.yml
 MYMETA.yml
 blib/
 pm_to_blib
+mha_*.cnf

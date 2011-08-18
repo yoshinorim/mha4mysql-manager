@@ -3,6 +3,7 @@
 ^MANIFEST\.
 ^Makefile$
 ~$
+\.log$
 \.old$
 \.bak$
 \.orig$
@@ -19,3 +20,4 @@
 \.git/
 \.gitignore$
 ^author/
+mha_.*\.cnf$

@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long;
+
+my $mysql_version;
+my $use_row_format;
+GetOptions(
+  'mysql_version=s'    => \$mysql_version,
+  'use_row_format' => \$use_row_format,
+);
+
+if($mysql_version) {
+  $ENV{'VERSION'}= $mysql_version;
+  my $version_dir= $mysql_version;
+  $version_dir =~ s/\./_/g;
+  $ENV{'VERSION_DIR'}= $version_dir;
+}
+if($use_row_format) {
+  $ENV{'USE_ROW_FORMAT'}= "1";
+}else {
+  $ENV{'USE_ROW_FORMAT'}= "";
+}
+
+my @files= `ls t_*.sh`;
+foreach(@files) {
+  chomp($_);
+  system("sh $_");
+}
+

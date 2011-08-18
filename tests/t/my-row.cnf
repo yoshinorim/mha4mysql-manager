@@ -1,0 +1,5 @@
+[mysqld]
+old-passwords
+binlog-format=row
+innodb-flush-log-at-trx-commit=0
+

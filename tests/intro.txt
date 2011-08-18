@@ -1,0 +1,9 @@
+MHA public test cases
+
+maatkit (mk-table-checksum), MySQL Sandbox, and MySQL binary packages(that are used from MySQL Sandbox) are needed to run tests.
+
+Edit t/env.sh and modify some variables (i.e. SANDBOX_HOME) as you like. By
+default, SANDBOX_HOME is /opt/mysql/sandbox_data. In this case, you need to
+put target MySQL binary tarball under /opt/mysql/X.Y.Z (i.e.
+/opt/mysql/5.5.15). 
+
