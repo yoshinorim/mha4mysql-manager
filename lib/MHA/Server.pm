@@ -364,19 +364,19 @@ sub has_replication_problem {
       sprintf( "Getting slave status failed on %s", $self->get_hostinfo() ) );
     return 1;
   }
-  elsif ( $status{Slave_IO_Running} eq "No" ) {
+  elsif ( $status{Slave_IO_Running} ne "Yes" ) {
     $log->error(
       sprintf( "Slave IO thread is not running on %s", $self->get_hostinfo() )
     );
     return 2;
   }
-  elsif ( $status{Slave_SQL_Running} eq "No" ) {
+  elsif ( $status{Slave_SQL_Running} ne "Yes" ) {
     $log->error(
       sprintf( "Slave SQL thread is not running on %s", $self->get_hostinfo() )
     );
     return 3;
   }
-  elsif ( $status{Seconds_Behind_Master} > $allow_delay_seconds ) {
+  elsif ( $status{Seconds_Behind_Master} && $status{Seconds_Behind_Master} > $allow_delay_seconds ) {
     $log->error(
       sprintf(
         "Slave is currently behind %d seconds on %s",
