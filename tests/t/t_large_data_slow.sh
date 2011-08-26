@@ -2,8 +2,10 @@
 
 # Fast position search should fail
 
+mysql $S1 test -e "set global relay_log_purge=0"
 mysql $S2 test -e "set global relay_log_purge=0"
 mysql $S3 test -e "set global relay_log_purge=0"
+mysql $S4 test -e "set global relay_log_purge=0"
 mysql $S1 test -e "set global max_relay_log_size=65536"
 mysql $S2 test -e "set global max_relay_log_size=65536"
 mysql $S3 test -e "set global max_relay_log_size=65536"

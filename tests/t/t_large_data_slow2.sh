@@ -2,8 +2,10 @@
 # new master(S1)'s sql thread is stopped too long time so S1 can't be a new master
 # It takes very long time on virtual machine
 
+mysql $S1 test -e "set global relay_log_purge=0"
 mysql $S2 test -e "set global relay_log_purge=0"
 mysql $S3 test -e "set global relay_log_purge=0"
+mysql $S4 test -e "set global relay_log_purge=0"
 
 mysql $S3 test -e "flush logs"
 mysql $S3 test -e "flush logs"

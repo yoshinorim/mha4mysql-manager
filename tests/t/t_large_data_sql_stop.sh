@@ -3,8 +3,10 @@
 # commits every 1000 rows
 # sql thread stops normally (simulating offline backup job)
 
+mysql $S1 test -e "set global relay_log_purge=0"
 mysql $S2 test -e "set global relay_log_purge=0"
 mysql $S3 test -e "set global relay_log_purge=0"
+mysql $S4 test -e "set global relay_log_purge=0"
 
 mysql $S3 test -e "flush logs"
 mysql $S3 test -e "flush logs"

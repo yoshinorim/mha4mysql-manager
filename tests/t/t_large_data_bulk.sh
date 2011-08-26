@@ -1,7 +1,9 @@
 . ./init.sh
 
+mysql $S1 test -e "set global relay_log_purge=0"
 mysql $S2 test -e "set global relay_log_purge=0"
 mysql $S3 test -e "set global relay_log_purge=0"
+mysql $S4 test -e "set global relay_log_purge=0"
 
 mysql $S3 test -e "flush logs"
 mysql $S3 test -e "flush logs"
