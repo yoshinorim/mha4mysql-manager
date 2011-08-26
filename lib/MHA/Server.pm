@@ -125,36 +125,49 @@ sub get_running_update_threads {
   return $dbhelper->get_running_update_threads($arg);
 }
 
-# Failed to connect does not result in script die, because it is sometimes expected.
-# Configuration error results in script die, because it should not happen if correctly configured.
-sub connect_and_get_status {
-  my ( $self, $log ) = @_;
-  $log = $self->{logger} unless ($log);
+sub connect_check {
+  my ( $self, $num_retries, $log ) = @_;
 
   my $dbhelper = new MHA::DBHelper();
   my $dbh =
     $dbhelper->connect( $self->{ip}, $self->{port}, $self->{user},
-    $self->{password} );
+    $self->{password}, 0, $num_retries );
   if ( !defined($dbh) ) {
     my $mysql_err = DBI->err;
     my $msg       = sprintf( "Got MySQL error when connecting %s :$mysql_err:",
       $self->get_hostinfo() );
     $msg .= "$DBI::errstr" if ($DBI::errstr);
-    $log->debug($msg);
+    $log->debug($msg) if ($log);
     if ( $mysql_err
       && grep ( $_ == $mysql_err, @MHA::ManagerConst::ALIVE_ERROR_CODES ) > 0 )
     {
       $msg .= ", but this is not mysql crash. Check MySQL server settings.";
-      $log->error($msg);
-      croak;
+      if ($log) {
+        $log->error($msg);
+        croak;
+      }
+      else {
+        croak("$msg\n");
+      }
     }
     $self->{dead} = 1;
-    return;
+    return $MHA::ManagerConst::MYSQL_DEAD_RC;
   }
-  $dbhelper->set_long_wait_timeout();
   $self->{dbhelper} = $dbhelper;
   $self->{dbh}      = $dbh;
+  return 0;
+}
 
+# Failed to connect does not result in script die, because it is sometimes expected.
+# Configuration error results in script die, because it should not happen if correctly configured.
+sub connect_and_get_status {
+  my ( $self, $log ) = @_;
+  $log = $self->{logger} unless ($log);
+  if ( $self->connect_check( 5, $log ) == $MHA::ManagerConst::MYSQL_DEAD_RC ) {
+    return;
+  }
+  my $dbhelper = $self->{dbhelper};
+  my $dbh      = $self->{dbh};
   $self->{dead} = 0;
   $log->debug(
     sprintf(
@@ -162,6 +175,7 @@ sub connect_and_get_status {
       $self->get_hostinfo(), $self->{user}
     )
   );
+  $dbhelper->set_long_wait_timeout();
   my ( $sstatus, $mip, $mport, $read_only, $relay_purge ) = ();
   $self->{server_id}     = $dbhelper->get_server_id();
   $self->{mysql_version} = $dbhelper->get_version();
@@ -213,7 +227,7 @@ sub connect_and_get_status {
   if ( $sstatus == 1 ) {
 
     # I am not a slave
-    $_->{not_slave} = 1;
+    $self->{not_slave} = 1;
   }
   elsif ($sstatus) {
     $log->error(
@@ -376,7 +390,9 @@ sub has_replication_problem {
     );
     return 3;
   }
-  elsif ( $status{Seconds_Behind_Master} && $status{Seconds_Behind_Master} > $allow_delay_seconds ) {
+  elsif ( $status{Seconds_Behind_Master}
+    && $status{Seconds_Behind_Master} > $allow_delay_seconds )
+  {
     $log->error(
       sprintf(
         "Slave is currently behind %d seconds on %s",

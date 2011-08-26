@@ -42,6 +42,7 @@ our @ALIVE_ERROR_CODES = (
 );
 
 our $MASTER_DEAD_RC = 20;
+our $MYSQL_DEAD_RC  = 10;
 
 # Manager status
 our $ST_RUNNING              = 0;

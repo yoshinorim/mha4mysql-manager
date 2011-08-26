@@ -25,8 +25,9 @@ use Carp qw(croak);
 use English qw(-no_match_vars);
 use MHA::SlaveUtil;
 use MHA::DBHelper;
-use Parallel::ForkManager;
 use MHA::Server;
+use MHA::ManagerConst;
+use Parallel::ForkManager;
 
 sub new {
   my $class = shift;
@@ -175,26 +176,62 @@ sub connect_all_and_read_server_status($$$$) {
   my @servers          = $self->get_servers();
   $log->debug("Connecting to servers..");
 
-  foreach (@servers) {
-    unless ( $_->{logger} ) {
-      $_->{logger} = $log;
+  my $should_die         = 0;
+  my $connection_checker = new Parallel::ForkManager( $#servers + 1 );
+  $connection_checker->run_on_start(
+    sub {
+      my ( $pid, $target ) = @_;
     }
-
-    if ( $dead_master_host
-      && $dead_master_ip
-      && $dead_master_port )
-    {
-      if (
-        $_->server_equals(
-          $dead_master_host, $dead_master_ip, $dead_master_port
-        )
-        )
-      {
-        $_->{dead} = 1;
-        next;
+  );
+  $connection_checker->run_on_finish(
+    sub {
+      my ( $pid, $exit_code, $target ) = @_;
+      if ( $exit_code == $MHA::ManagerConst::MYSQL_DEAD_RC ) {
+        $target->{dead} = 1;
+      }
+      elsif ($exit_code) {
+        $should_die = 1;
       }
     }
-    $_->connect_and_get_status();
+  );
+  foreach my $target (@servers) {
+    unless ( $target->{logger} ) {
+      $target->{logger} = $log;
+    }
+    $connection_checker->start($target) and next;
+    eval {
+      if ( $dead_master_host
+        && $dead_master_ip
+        && $dead_master_port )
+      {
+        if (
+          $target->server_equals(
+            $dead_master_host, $dead_master_ip, $dead_master_port
+          )
+          )
+        {
+          $connection_checker->finish($MHA::ManagerConst::MYSQL_DEAD_RC);
+        }
+      }
+      my $rc = $target->connect_check(2);
+      $connection_checker->finish($rc);
+    };
+    if ($@) {
+      $log->error($@);
+      undef $@;
+      $connection_checker->finish(1);
+    }
+    $connection_checker->finish(0);
+  }
+  $connection_checker->wait_all_children;
+  if ($should_die) {
+    $log->error("Got fatal error, stopping operations");
+    croak;
+  }
+
+  foreach my $target (@servers) {
+    next if ( $target->{dead} );
+    $target->connect_and_get_status();
   }
   $self->init_servers();
   $self->compare_slave_version();

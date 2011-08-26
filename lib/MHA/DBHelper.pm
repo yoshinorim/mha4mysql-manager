@@ -152,8 +152,9 @@ sub connect {
   my $user        = shift;
   my $password    = shift;
   my $raise_error = shift;
+  my $max_retries = shift;
   $raise_error = 0 if ( !defined($raise_error) );
-  my $max_retries = 2;
+  $max_retries = 2 if ( !defined($max_retries) );
 
   $self->{dbh} = undef;
   unless ( $self->{dsn} ) {
