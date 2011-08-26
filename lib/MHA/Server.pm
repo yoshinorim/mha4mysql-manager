@@ -402,6 +402,13 @@ sub has_replication_problem {
     );
     return 4;
   }
+  elsif ( !defined( $status{Seconds_Behind_Master} ) ) {
+    $log->error(
+      sprintf( "Failed to get Seconds_Behind_Master on %s",
+        $self->get_hostinfo() )
+    );
+    return 5;
+  }
   return 0;
 }
 
