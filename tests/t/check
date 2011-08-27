@@ -40,5 +40,5 @@ sub handle_fail{
 
 sub handle_ok{ 
   print "$testcase_name [Pass]\n";
-  exit 1;
+  exit 0;
 }
