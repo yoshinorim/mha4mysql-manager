@@ -32,16 +32,17 @@ use Parallel::ForkManager;
 sub new {
   my $class = shift;
   my $self  = {
-    servers       => [],
-    dead_servers  => [],
-    alive_servers => [],
-    alive_slaves  => [],
-    failed_slaves => [],
-    latest_slaves => [],
-    oldest_slaves => [],
-    orig_master   => undef,
-    new_master    => undef,
-    logger        => undef,
+    servers          => [],
+    dead_servers     => [],
+    alive_servers    => [],
+    alive_slaves     => [],
+    failed_slaves    => [],
+    latest_slaves    => [],
+    oldest_slaves    => [],
+    unmanaged_slaves => [],
+    orig_master      => undef,
+    new_master       => undef,
+    logger           => undef,
     @_,
   };
   return bless $self, $class;
@@ -63,6 +64,12 @@ sub set_oldest_slaves($$) {
   my $self        = shift;
   my $servers_ref = shift;
   $self->{oldest_slaves} = $servers_ref;
+}
+
+sub set_unmanaged_slaves($$) {
+  my $self        = shift;
+  my $servers_ref = shift;
+  $self->{unmanaged_slaves} = $servers_ref;
 }
 
 sub get_servers($) {
@@ -100,6 +107,11 @@ sub get_oldest_slaves($) {
   return @{ $self->{oldest_slaves} };
 }
 
+sub get_unmanaged_slaves($) {
+  my $self = shift;
+  return @{ $self->{unmanaged_slaves} };
+}
+
 sub add_dead_server($$) {
   my $self   = shift;
   my $server = shift;
@@ -124,22 +136,44 @@ sub add_failed_slave($$) {
   push @{ $self->{failed_slaves} }, $server;
 }
 
+sub add_unmanaged_slave($$) {
+  my $self   = shift;
+  my $server = shift;
+  push @{ $self->{unmanaged_slaves} }, $server;
+}
+
+sub set_orig_master($$) {
+  my $self   = shift;
+  my $server = shift;
+  $self->{orig_master}   = $server;
+  $server->{orig_master} = 1;
+}
+
+sub get_orig_master($) {
+  my $self = shift;
+  return $self->{orig_master};
+}
+
 sub init_servers($) {
   my $self    = shift;
   my $log     = $self->{logger};
   my @servers = $self->get_servers();
-  $self->{dead_servers}  = [];
-  $self->{alive_servers} = [];
-  $self->{alive_slaves}  = [];
-  $self->{failed_slaves} = [];
+  $self->{dead_servers}     = [];
+  $self->{alive_servers}    = [];
+  $self->{alive_slaves}     = [];
+  $self->{failed_slaves}    = [];
+  $self->{unmanaged_slaves} = [];
   foreach my $server (@servers) {
 
     if ( $server->{dead} ) {
       $self->add_dead_server($server);
     }
+    elsif ( $server->{unmanaged} ) {
+      $self->add_unmanaged_slave($server);
+    }
     else {
       $self->add_alive_server($server);
-      if ( $server->{not_slave} eq '0' ) {
+      if ( $server->{not_slave} eq '0' && !$server->{orig_master} ) {
         if ( !$server->is_sql_thread_error() && !$server->{lack_relay_log} ) {
           $self->add_alive_slave($server);
         }
@@ -236,6 +270,7 @@ sub connect_all_and_read_server_status($$$$) {
   $self->init_servers();
   $self->compare_slave_version();
   $log->debug("Connecting to servers done.");
+  $self->validate_current_master();
 }
 
 sub get_oldest_version($) {
@@ -410,7 +445,6 @@ sub validate_num_alive_servers($$$) {
     );
     croak;
   }
-
   foreach (@failed_slaves) {
     next if ( $ignore_fail_check && $_->{ignore_fail} );
     $log->error(
@@ -457,17 +491,6 @@ sub validate_slaves($$$) {
           " log-bin is not set on slave %s. This host can not be a master.\n",
           $_->get_hostinfo() )
       );
-    }
-    if ( !$mip || !$mport ) {
-      $mip   = $_->{Master_IP};
-      $mport = $_->{Master_Port};
-    }
-    elsif (
-      !( ( $_->{Master_IP} eq $mip ) && ( $_->{Master_Port} == $mport ) ) )
-    {
-      $log->error("At least one of slaves replicate from different master(s)");
-      $error = 1;
-      return $error;
     }
   }
   $error = $self->validate_repl_filter($master)
@@ -528,79 +551,204 @@ sub get_server_from_by_id {
   return;
 }
 
-sub validate_current_master($) {
-  my $self    = shift;
-  my $log     = $self->{logger};
-  my @servers = $self->get_alive_servers();
-  my $master_ip;
-  my $master_host;
-  my $master_port;
-  my $master_ip_byslave;
-  my $master_host_byslave;
-  my $master_port_byslave;
-  my $num_master = 0;
-  my $status     = 0;
+sub get_alive_server_by_id {
+  my $self          = shift;
+  my $id            = shift;
+  my @alive_servers = $self->get_alive_servers();
+  foreach (@alive_servers) {
+    if ( $_->{id} eq $id ) {
+      return $_;
+    }
+  }
+  return;
+}
 
-  foreach (@servers) {
+sub get_alive_slave_by_id {
+  my $self         = shift;
+  my $id           = shift;
+  my @alive_slaves = $self->get_alive_slaves();
+  foreach (@alive_slaves) {
+    if ( $_->{id} eq $id ) {
+      return $_;
+    }
+  }
+  return;
+}
+
+sub get_master_by_slave {
+  my $self  = shift;
+  my $slave = shift;
+  return $self->get_server_by_ipport( $slave->{Master_IP},
+    $slave->{Master_Port} );
+}
+
+sub validate_current_master($) {
+  my $self          = shift;
+  my $log           = $self->{logger};
+  my @alive_servers = $self->get_alive_servers();
+  my %master_hash;
+  my $num_slaves        = 0;
+  my $not_slave_servers = 0;
+  foreach (@alive_servers) {
     if ( $_->{not_slave} eq '0' ) {
-      $master_ip_byslave = $_->{Master_IP}
-        if ( !$master_ip_byslave );
-      $master_host_byslave = $_->{Master_Host}
-        if ( !$master_host_byslave );
-      $master_port_byslave = $_->{Master_Port}
-        if ( !$master_port_byslave );
-      if (
-        !(
-             $master_ip_byslave eq $_->{Master_IP}
-          && $master_port_byslave == $_->{Master_Port}
-        )
-        )
-      {
-        $log->error(
-"FATAL: Replication configuration error. All slaves should replicate from the same master."
-        );
-        return;
-      }
+      $master_hash{"$_->{Master_IP}:$_->{Master_Port}"} = $_;
+      $num_slaves++;
     }
     else {
-      $num_master++;
-      if ( $num_master >= 2 ) {
-        $log->error(
-"FATAL: Replication configuration error. The number of alive masters should be at most 1."
-        );
-        return;
-      }
-      $master_ip   = $_->{ip};
-      $master_host = $_->{hostname};
-      $master_port = $_->{port};
+      $not_slave_servers++;
     }
   }
 
-  # no slave is available.
-  if ( !$master_ip_byslave || !$master_port_byslave ) {
-    $log->warn("Slave server is not available.");
-    return ( $master_ip, $master_port );
+  if ( $not_slave_servers >= 2 ) {
+    $log->error(
+"There are $not_slave_servers non-slave servers! MHA manages at most one non-slave server. Check configurations."
+    );
+    croak;
   }
 
-  # master ip/port is not set if master is dead. this is normal behavior
-  if ( !$master_ip || !$master_port ) {
-    return ( $master_ip_byslave, $master_port_byslave, "master_ip_is_not_set" );
+  if ( $num_slaves < 1 ) {
+    $log->error(
+      "There is not any alive slave! Check slave settings for details.");
+    croak;
   }
-  elsif ( $master_ip ne $master_ip_byslave
-    || $master_port != $master_port_byslave )
-  {
 
-# if master's actual ip/port is different from slaves' master ip/port, that is fatal.
+  # verify masters exist in a config file
+  my $master;
+  foreach my $key ( keys(%master_hash) ) {
+    my $slave = $master_hash{$key};
+    $master = $self->get_master_by_slave($slave);
+    unless ($master) {
+      $log->error(
+        sprintf(
+"Master %s:%d from which slave %s replicates is not defined in the configuration file!",
+          $slave->{Master_IP}, $slave->{Master_Port},
+          $slave->get_hostinfo()
+        )
+      );
+      croak;
+    }
+  }
+
+  my $real_master;
+  if ( keys(%master_hash) >= 2 ) {
+    $real_master = $self->get_primary_master( \%master_hash );
+  }
+  else {
+    $real_master = $master;
+    $self->set_orig_master($real_master);
+  }
+  $self->validate_master_ip_port($real_master);
+  return $real_master;
+}
+
+sub validate_master_ip_port {
+  my $self                 = shift;
+  my $real_master          = shift;
+  my $log                  = $self->{logger};
+  my $has_unmanaged_slaves = 0;
+  my @alive_servers        = $self->get_alive_servers();
+  foreach my $slave (@alive_servers) {
+    next if ( $slave->{id} eq $real_master->{id} );
+    unless ( $self->get_alive_slave_by_id( $slave->{id} ) ) {
+      $log->error(
+        sprintf( "Server %s is alive, but does not work as a slave!",
+          $slave->get_hostinfo() )
+      );
+      croak;
+    }
+    if (
+      !(
+           ( $slave->{Master_IP} eq $real_master->{ip} )
+        && ( $slave->{Master_Port} == $real_master->{port} )
+      )
+      )
+    {
+      if ( $slave->{multi_tier_slave} ) {
+        $slave->{unmanaged} = 1;
+        $has_unmanaged_slaves = 1;
+      }
+      else {
+        my $msg = sprintf(
+          "Slave %s replicates from %s:%d, but real master is %s!",
+          $slave->get_hostinfo(), $slave->{Master_Host},
+          $slave->{Master_Port},  $real_master->get_hostinfo()
+        );
+        $log->error($msg);
+        croak;
+      }
+    }
+  }
+  if ($has_unmanaged_slaves) {
+    $self->init_servers();
+  }
+}
+
+sub get_multi_master_print_info {
+  my $self            = shift;
+  my $master_hash_ref = shift;
+  my %master_hash     = %$master_hash_ref;
+  my $str             = "";
+  foreach my $key ( keys(%master_hash) ) {
+    my $slave  = $master_hash{$key};
+    my $master = $self->get_master_by_slave($slave);
+    $str .= "Master " . $master->get_hostinfo();
+    $str .=
+", replicating from $master->{Master_Host}($master->{Master_IP}:$master->{Master_Port})"
+      if ( $master->{Master_Host} );
+    $str .= ", read-only" if ( $master->{read_only} );
+    $str .= ", dead"      if ( $master->{dead} );
+    $str .= "\n";
+  }
+  $str .= "\n";
+  return $str;
+}
+
+sub get_primary_master {
+  my $self            = shift;
+  my $master_hash_ref = shift;
+  my $log             = $self->{logger};
+  my @alive_servers   = $self->get_alive_servers();
+  my %master_hash     = %$master_hash_ref;
+
+  my $num_real_masters = 0;
+  my $real_master;
+  foreach my $key ( keys(%master_hash) ) {
+    my $slave  = $master_hash{$key};
+    my $master = $self->get_master_by_slave($slave);
+    next if ( !$master->{dead} && $master->{read_only} );
+    $real_master = $master;
+    $num_real_masters++;
+  }
+  if ( $num_real_masters < 1 ) {
     $log->error(
       sprintf(
-"FATAL: Replication configuration error. master ip/port(%s(%s:%d)) is different from slaves' master ip/port(%s(%s:%d)).\n",
-        $master_host,         $master_ip,         $master_port,
-        $master_host_byslave, $master_ip_byslave, $master_port_byslave
-      )
+"Multi-master configuration is detected, but all of them are read-only! Check configurations for details. Master configurations are as below: \n%s",
+        $self->get_multi_master_print_info($master_hash_ref) )
     );
-    return;
+    croak;
   }
-  return ( $master_ip, $master_port );
+  elsif ( $num_real_masters >= 2 ) {
+    $log->error(
+      sprintf(
+"Multi-master configuration is detected, but two or more masters are either writable (read-only is not set) or dead! Check configurations for details. Master configurations are as below: \n%s",
+        $self->get_multi_master_print_info($master_hash_ref) )
+    );
+    croak;
+  }
+  else {
+    $self->set_orig_master($real_master);
+    $log->info(
+      sprintf(
+"Multi-master configuration is detected. Current primary(writable) master is %s",
+        $real_master->get_hostinfo() )
+    );
+    $log->info(
+      sprintf( "Master configurations are as below: \n%s",
+        $self->get_multi_master_print_info($master_hash_ref) )
+    );
+    $self->init_servers();
+  }
+  return $real_master;
 }
 
 sub get_candidate_masters($) {
@@ -636,11 +784,6 @@ sub print_alive_slaves {
   $self->print_servers( $self->{alive_slaves} );
 }
 
-sub print_failed_slaves {
-  my $self = shift;
-  $self->print_servers( $self->{failed_slaves} );
-}
-
 sub print_latest_slaves {
   my $self = shift;
   $self->print_servers( $self->{latest_slaves} );
@@ -649,6 +792,26 @@ sub print_latest_slaves {
 sub print_oldest_slaves {
   my $self = shift;
   $self->print_servers( $self->{oldest_slaves} );
+}
+
+sub print_failed_slaves_if {
+  my $self          = shift;
+  my $log           = $self->{logger};
+  my @failed_slaves = $self->get_failed_slaves();
+  if ( $#failed_slaves >= 0 ) {
+    $log->info("Failed Slaves:");
+    $self->print_servers( $self->{failed_slaves} );
+  }
+}
+
+sub print_unmanaged_slaves_if {
+  my $self             = shift;
+  my $log              = $self->{logger};
+  my @unmanaged_slaves = $self->get_unmanaged_slaves();
+  if ( $#unmanaged_slaves >= 0 ) {
+    $log->info("Unmanaged Servers:");
+    $self->print_servers( $self->{unmanaged_slaves} );
+  }
 }
 
 sub print_servers {
@@ -933,7 +1096,7 @@ sub get_bad_candidate_masters($$$) {
   return @ret_servers;
 }
 
-sub is_target_bad_for_manual_new_master {
+sub is_target_bad_for_new_master {
   my $self   = shift;
   my $target = shift;
   my @bad    = $self->get_bad_candidate_masters();
@@ -1098,24 +1261,21 @@ sub change_master_and_start_slave {
 }
 
 sub get_current_alive_master($) {
-  my $self          = shift;
-  my $log           = $self->{logger};
-  my @alive_servers = $self->get_alive_servers();
-  my ( $ip, $port ) = $self->validate_current_master();
-  unless ($ip) {
+  my $self   = shift;
+  my $log    = $self->{logger};
+  my $master = $self->get_orig_master();
+  unless ($master) {
     $log->error(
       "MySQL master is not correctly configured. Check master/slave settings");
     croak;
   }
-  my $m = $self->get_alive_server_by_ipport( $ip, $port );
+  my $m = $self->get_alive_server_by_id( $master->{id} );
   unless ($m) {
-    $log->warn(
-"MySQL master is not currently alive or not found from configuration file!"
-    );
+    $log->warn("MySQL master is not currently alive!");
     return;
   }
-  $log->info("Current Master: $m->{hostname}($ip:$port)");
-  return $m;
+  $log->info( sprintf( "Current Alive Master: %s", $m->get_hostinfo() ) );
+  return $master;
 }
 
 sub stop_io_threads {
@@ -1209,10 +1369,10 @@ sub print_servers_migration_ascii {
 
 # for manual failover/switch only
 sub manually_decide_new_master {
-  my $server_manager = shift;
-  my $orig_master    = shift;
-  my $new_master     = shift;
-  my $log            = $server_manager->{logger};
+  my $self        = shift;
+  my $orig_master = shift;
+  my $new_master  = shift;
+  my $log         = $self->{logger};
 
   printf(
     "\nStarting master switch from %s to %s? (yes/NO): ",
@@ -1232,7 +1392,7 @@ sub manually_decide_new_master {
     print "Enter new master host name: ";
     $ret = <STDIN>;
     chomp($ret);
-    $new_master = $server_manager->get_alive_server_by_hostport( $ret, 3306 );
+    $new_master = $self->get_alive_server_by_hostport( $ret, 3306 );
 
     if ( !$new_master ) {
       die "New server not found!\n";
@@ -1241,19 +1401,6 @@ sub manually_decide_new_master {
     $ret = <STDIN>;
     chomp($ret);
     die "Not typed yes. Stopping. \n" if ( lc($ret) !~ /^y/ );
-
-    $log->info(
-      sprintf( "Checking whether %s is ok for the new master..",
-        $new_master->get_hostinfo() )
-    );
-    if ( $server_manager->is_target_bad_for_manual_new_master($new_master) ) {
-      $log->error(
-        sprintf( "Server %s is not correctly configured to be new master!",
-          $new_master->get_hostinfo() )
-      );
-      die;
-    }
-    $log->info(" ok.");
   }
   return $new_master;
 }

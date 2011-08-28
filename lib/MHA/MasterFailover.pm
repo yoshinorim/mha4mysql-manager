@@ -150,6 +150,25 @@ sub check_settings($) {
       $_dead_master_arg{hostname},
       $_dead_master_arg{ip}, $_dead_master_arg{port} );
   }
+  my $m = $_server_manager->get_orig_master();
+  if (
+    !(
+         $_dead_master_arg{hostname} eq $m->{hostname}
+      && $_dead_master_arg{ip}       eq $m->{ip}
+      && $_dead_master_arg{port}     eq $m->{port}
+    )
+    )
+  {
+    $log->error(
+      sprintf(
+"Detected dead master %s does mot match with specified dead master %s(%s:%s)!",
+        $m->get_hostinfo(),    $_dead_master_arg{hostname},
+        $_dead_master_arg{ip}, $_dead_master_arg{port}
+      )
+    );
+    croak;
+  }
+
   my @dead_servers  = $_server_manager->get_dead_servers();
   my @alive_servers = $_server_manager->get_alive_servers();
   my @alive_slaves  = $_server_manager->get_alive_slaves();
@@ -199,6 +218,8 @@ sub check_settings($) {
   $_server_manager->print_alive_servers();
   $log->info("Alive Slaves:");
   $_server_manager->print_alive_slaves();
+  $_server_manager->print_failed_slaves_if();
+  $_server_manager->print_unmanaged_slaves_if();
 
   if ( $dead_master->{handle_raw_binlog} ) {
     $_saved_file_suffix = ".binlog";
@@ -1366,10 +1387,10 @@ sub reconf_alive_servers {
     $_server_manager->init_servers();
     $log->info("Dead Servers:");
     $_server_manager->print_dead_servers();
-    $log->info("Failed Slaves:");
-    $_server_manager->print_failed_slaves();
     $log->info("Alive Slaves:");
     $_server_manager->print_alive_slaves();
+    $_server_manager->print_failed_slaves_if();
+    $_server_manager->print_unmanaged_slaves_if();
   }
   $_server_manager->validate_num_alive_servers( $dead_master, 1 );
 }

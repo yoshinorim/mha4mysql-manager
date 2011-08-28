@@ -3,9 +3,12 @@
 . ./env.sh
 
 SANDBOX_HOME_ESC=`echo $SANDBOX_HOME | sed -e 's/\//\\\\\\//g'`
-sed -e "s/##VERSION_DIR##/$VERSION_DIR/g" -e "s/##SANDBOX_HOME##/$SANDBOX_HOME_ESC/g" mha_test.cnf.tmpl > $CONF
-sed -e "s/##VERSION_DIR##/$VERSION_DIR/g" -e "s/##SANDBOX_HOME##/$SANDBOX_HOME_ESC/g" mha_test_latest.cnf.tmpl > $CONF_LATEST
-sed -e "s/##VERSION_DIR##/$VERSION_DIR/g" -e "s/##SANDBOX_HOME##/$SANDBOX_HOME_ESC/g" mha_test_ignore.cnf.tmpl > $CONF_IGNORE
+
+for tmpl in `ls mha_test*.cnf.tmpl`
+do
+cnf=${tmpl%.tmpl}
+sed -e "s/##VERSION_DIR##/$VERSION_DIR/g" -e "s/##SANDBOX_HOME##/$SANDBOX_HOME_ESC/g" $tmpl > $cnf
+done
 
 $SANDBOX_HOME/send_kill_all  > bootstrap.log 2>&1
 $SANDBOX_HOME/clear_all  > bootstrap.log 2>&1

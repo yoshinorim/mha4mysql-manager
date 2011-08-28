@@ -45,6 +45,7 @@ my $g_orig_master_is_new_slave;
 my $g_running_updates_limit = 1;
 my $g_skip_lock_all_tables;
 my $g_remove_orig_master_conf;
+my $g_interactive = 1;
 my $_server_manager;
 my $start_datetime;
 
@@ -103,30 +104,25 @@ sub identify_orig_master() {
 
   $log->info("Alive Slaves:");
   $_server_manager->print_alive_slaves(1);
+  $_server_manager->print_unmanaged_slaves_if();
 
-  if ( $#alive_slaves < 0 ) {
-    $log->error("There is no slave configured.");
-    croak;
-  }
-
-  if ( $#alive_slaves + 1 != $#alive_servers
-    || $#alive_slaves + 1 != $#servers )
-  {
-    $log->error("Not all slave servers is running correctly.\n");
-    croak;
-  }
   $_server_manager->check_repl_priv();
 
-  printf(
+  if ($g_interactive) {
+    printf(
 "\nIt is better to execute FLUSH NO_WRITE_TO_BINLOG TABLES on the master before switching. Is it ok to execute on %s? (YES/no): ",
-    $orig_master->get_hostinfo() );
-  my $ret = <STDIN>;
-  chomp($ret);
-  if ( lc($ret) !~ /^n/ ) {
-    $orig_master->flush_tables();
+      $orig_master->get_hostinfo() );
+    my $ret = <STDIN>;
+    chomp($ret);
+    if ( lc($ret) !~ /^n/ ) {
+      $orig_master->flush_tables();
+    }
+    else {
+      $log->info("Skipping executing FLUSH NO_WRITE_TO_BINLOG TABLES.");
+    }
   }
   else {
-    $log->info("Skipping executing FLUSH NO_WRITE_TO_BINLOG TABLES.");
+    $orig_master->flush_tables();
   }
 
   $log->info("Checking MHA is not monitoring or doing failover..");
@@ -204,8 +200,23 @@ sub identify_new_master {
   $_server_manager->print_servers_migration_ascii( $orig_master, $new_master,
     $g_orig_master_is_new_slave );
 
-  $new_master =
-    $_server_manager->manually_decide_new_master( $orig_master, $new_master );
+  if ($g_interactive) {
+    $new_master =
+      $_server_manager->manually_decide_new_master( $orig_master, $new_master );
+  }
+
+  $log->info(
+    sprintf( "Checking whether %s is ok for the new master..",
+      $new_master->get_hostinfo() )
+  );
+  if ( $_server_manager->is_target_bad_for_new_master($new_master) ) {
+    $log->error(
+      sprintf( "Server %s is not correctly configured to be new master!",
+        $new_master->get_hostinfo() )
+    );
+    die;
+  }
+  $log->info(" ok.");
 
   check_filter( $orig_master, $new_master );
   return $new_master;
@@ -240,7 +251,7 @@ sub reject_update($$) {
       }
     }
   }
-  else {
+  elsif ($g_interactive) {
     print
 "master_ip_online_change_script is not defined. If you do not disable writes on the current master manually, applications keep writing on the current master. Is it ok to proceed? (yes/NO): ";
     $ret = <STDIN>;
@@ -249,6 +260,11 @@ sub reject_update($$) {
       $orig_master->{not_error} = 1;
       die "Not typed yes. Stopping.";
     }
+  }
+  else {
+    $log->warn(
+"master_ip_online_change_script is not defined. Skipping disabling writes on the current master."
+    );
   }
 
   # It is necessary to keep connecting on the orig master to check
@@ -567,6 +583,7 @@ sub main {
     'new_master_port=i'        => \$g_new_master_port,
     'workdir=s'                => \$g_workdir,
     'manager_workdir=s'        => \$g_workdir,
+    'interactive=i'            => \$g_interactive,
     'orig_master_is_new_slave' => \$g_orig_master_is_new_slave,
     'running_updates_limit=i'  => \$g_running_updates_limit,
     'skip_lock_all_tables'     => \$g_skip_lock_all_tables,

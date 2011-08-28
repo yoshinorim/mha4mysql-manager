@@ -239,6 +239,8 @@ sub wait_until_master_is_unreachable() {
     $_server_manager->print_alive_servers();
     $log->info("Alive Slaves:");
     $_server_manager->print_alive_slaves();
+    $_server_manager->print_failed_slaves_if();
+    $_server_manager->print_unmanaged_slaves_if();
 
     $current_master = $_server_manager->get_current_alive_master();
 
@@ -278,11 +280,8 @@ sub wait_until_master_is_unreachable() {
     }
     $log->info(" Version check ok.");
     unless ($current_master) {
-      $log->info(
-        "Getting current master (maybe dead) info from other slaves..");
-      $current_master =
-        $_server_manager->get_server_by_ipport( $alive_slaves[0]->{Master_IP},
-        $alive_slaves[0]->{Master_Port} );
+      $log->info("Getting current master (maybe dead) info ..");
+      $current_master = $_server_manager->get_orig_master();
       if ( !$current_master ) {
         $log->error("Failed to get current master info!");
         croak;
@@ -439,37 +438,11 @@ sub wait_until_master_is_dead {
     $_server_manager->print_alive_servers();
     $log->info("Alive Slaves:");
     $_server_manager->print_alive_slaves();
+    $_server_manager->print_failed_slaves_if();
+    $_server_manager->print_unmanaged_slaves_if();
 
-    # Check master configurations
-    my ( $dead_master_ip, $dead_master_port, $status ) =
-      $_server_manager->validate_current_master();
-
-    if ( !$dead_master_ip || !$dead_master_port ) {
-      $log->error(
-        "Replication configuration is not valid. Can't execute failover.");
-      return 1;
-    }
-
-    my $real_master =
-      $_server_manager->get_server_by_ipport( $dead_master_ip,
-      $dead_master_port );
-
-    unless ($real_master) {
-      $log->error(
-        sprintf(
-"Actual master server is (%s:%d), but this is not found from configuration file. Check replication configurations again.",
-          $dead_master_ip, $dead_master_port
-        )
-      );
-      return 1;
-    }
-    if (
-      !$dead_master->server_equals(
-        $real_master->{hostname},
-        $real_master->{ip}, $real_master->{port}
-      )
-      )
-    {
+    my $real_master = $_server_manager->get_orig_master();
+    if ( $dead_master->{id} ne $real_master->{id} ) {
       $log->error(
         sprintf(
 "Monitor detected %s failed, but actual master server is %s. Check replication configurations again.",
@@ -481,7 +454,7 @@ sub wait_until_master_is_dead {
     }
 
     # When this condition is met, master is actually alive.
-    if ( !defined($status) || $status ne "master_ip_is_not_set" ) {
+    if ( $_server_manager->get_alive_server_by_id( $dead_master->{id} ) ) {
       $log->warn("master is actually alive. starting monitoring again.");
       return $RETRY;
     }

@@ -1,7 +1,9 @@
 . ./init.sh
 
+# S1 SQL thread stops with error
 mysql $S1 test -e "insert into t1 values (100, 100, 100)"
 mysql $M test -e "insert into t1 values (100, 100, 100)"
+sleep 1
 check_sql_stop $0 $S1P
 
 masterha_check_repl --conf=$CONF > /dev/null 2>&1
