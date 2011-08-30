@@ -314,7 +314,7 @@ sub force_shutdown_internal($) {
       $log->error($message);
       $mail_body .= $message . "\n";
       if ( $high == 10 ) {
-        $log->warn("Proceeding.");
+        $log->warning("Proceeding.");
       }
       else {
         croak;
@@ -322,7 +322,7 @@ sub force_shutdown_internal($) {
     }
   }
   else {
-    $log->warn(
+    $log->warning(
 "master_ip_failover_script is not set. Skipping invalidating dead master ip address."
     );
   }
@@ -366,7 +366,7 @@ sub force_shutdown_internal($) {
     }
   }
   else {
-    $log->warn(
+    $log->warning(
 "shutdown_script is not set. Skipping explicit shutting down of the dead master."
     );
   }
@@ -553,7 +553,7 @@ sub save_master_binlog {
       $log->info("Skipping trying to save dead master's binary log.");
     }
     elsif ( !$_real_ssh_reachable ) {
-      $log->warn(
+      $log->warning(
 "Dead Master is not SSH reachable. Could not save it's binlogs. Transactions that were not sent to the latest slave (Read_Master_Log_Pos to the tail of the dead master's binlog) were lost."
       );
     }
@@ -598,7 +598,7 @@ sub find_slave_with_all_relay_logs {
       return $latest_slave;
     }
     else {
-      $log->warn(
+      $log->warning(
 "$latest_slave->{hostname} doesn't have all relay logs. Maybe some logs were purged."
       );
     }
@@ -630,7 +630,7 @@ sub find_latest_base_slave_internal {
       find_slave_with_all_relay_logs( $oldest_slave->{Master_Log_File},
       $oldest_slave->{Read_Master_Log_Pos} );
     unless ($target) {
-      $log->warn(
+      $log->warning(
 "None of latest servers have enough relay logs from oldest position. We can't recover oldest slaves."
       );
       my @oldest_slaves = $_server_manager->get_oldest_slaves();
@@ -641,7 +641,7 @@ sub find_latest_base_slave_internal {
       my ( $oldest_limit_mlf, $oldest_limit_mlp ) =
         $_server_manager->get_oldest_limit_pos();
       unless ($oldest_limit_mlf) {
-        $log->warn(
+        $log->warning(
           "All slave servers set ignore_fail parameters. Continuing failover.");
         $target = $latest_slaves[0];
       }
@@ -659,7 +659,7 @@ sub find_latest_base_slave_internal {
         return;
       }
       else {
-        $log->warn(
+        $log->warning(
           sprintf(
 "The oldest master position from non-ignore_fail slaves is %s:%d. Checking whether latest slaves' relay logs from this position.",
             $oldest_limit_mlf, $oldest_limit_mlp
@@ -913,6 +913,7 @@ sub recover_all_slaves_relay_logs {
       $pplog = Log::Dispatch->new( callbacks => $MHA::ManagerConst::log_fmt );
       $pplog->add(
         Log::Dispatch::File->new(
+          name      => 'file',
           filename  => $local_file,
           min_level => $target->{log_level},
           callbacks => $MHA::ManagerConst::add_timestamp,
@@ -1182,7 +1183,7 @@ sub recover_master($$$) {
       $log->error( " " . $message );
       $mail_body .= $message . "\n";
       if ( $high == 10 ) {
-        $log->warn("Proceeding.");
+        $log->warning("Proceeding.");
       }
       else {
         croak;
@@ -1190,7 +1191,7 @@ sub recover_master($$$) {
     }
   }
   else {
-    $log->warn(
+    $log->warning(
 "master_ip_failover_script is not set. Skipping taking over new master ip address."
     );
   }
@@ -1304,6 +1305,7 @@ sub recover_slaves_internal {
       $pplog = Log::Dispatch->new( callbacks => $MHA::ManagerConst::log_fmt );
       $pplog->add(
         Log::Dispatch::File->new(
+          name      => 'file',
           filename  => $local_file,
           min_level => $target->{log_level},
           callbacks => $MHA::ManagerConst::add_timestamp,

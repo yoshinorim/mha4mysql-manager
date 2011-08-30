@@ -36,6 +36,7 @@ sub init_log {
   unless ($log_output) {
     $log->add(
       Log::Dispatch::Screen->new(
+        name      => 'screen',
         min_level => $level,
         callbacks => $MHA::ManagerConst::add_timestamp,
         mode      => 'append',
@@ -45,6 +46,7 @@ sub init_log {
   else {
     $log->add(
       Log::Dispatch::File->new(
+        name              => 'file',
         filename          => $log_output,
         min_level         => $level,
         callbacks         => $MHA::ManagerConst::add_timestamp,

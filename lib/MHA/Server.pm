@@ -319,7 +319,7 @@ sub get_and_set_high_max_allowed_packet {
   $log->debug(
     "Current max_allowed_packet is $self->{orig_max_allowed_packet}.");
   if ( $dbhelper->set_max_allowed_packet_1g() ) {
-    $log->warn("Tentatively setting max_allowed_packet to 1GB failed.");
+    $log->warning("Tentatively setting max_allowed_packet to 1GB failed.");
     return 1;
   }
   else {
@@ -333,7 +333,7 @@ sub set_default_max_allowed_packet {
   $log = $self->{logger} unless ($log);
   my $dbhelper = $self->{dbhelper};
   if ( $dbhelper->set_max_allowed_packet( $self->{orig_max_allowed_packet} ) ) {
-    $log->warn(
+    $log->warning(
 "Setting max_allowed_packet back to $self->{orig_max_allowed_packet} failed."
     );
     return 1;
@@ -777,7 +777,7 @@ sub is_sql_thread_error {
   }
   return 0 if ( $status{Slave_SQL_Running} eq "Yes" );
   if ( $status{Slave_SQL_Running} eq "No" && $status{Last_Errno} eq '0' ) {
-    $log->warn(
+    $log->warning(
       sprintf( "SQL Thread is stopped(no error) on %s", $self->get_hostinfo() )
     );
     return 0;

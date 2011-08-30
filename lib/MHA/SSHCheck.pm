@@ -86,6 +86,7 @@ sub do_ssh_connection_check {
       $pplog = Log::Dispatch->new( callbacks => $MHA::ManagerConst::log_fmt );
       $pplog->add(
         Log::Dispatch::File->new(
+          name      => 'file',
           filename  => $file,
           min_level => $log_level,
           callbacks => $MHA::ManagerConst::add_timestamp,

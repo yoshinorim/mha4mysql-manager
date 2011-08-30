@@ -153,7 +153,7 @@ sub check_scripts($) {
     }
   }
   else {
-    $log->warn("master_ip_failover_script is not defined.");
+    $log->warning("master_ip_failover_script is not defined.");
   }
 
   if ( $current_master->{shutdown_script} ) {
@@ -171,7 +171,7 @@ sub check_scripts($) {
     }
   }
   else {
-    $log->warn("shutdown_script is not defined.");
+    $log->warning("shutdown_script is not defined.");
   }
 }
 
@@ -217,7 +217,7 @@ sub wait_until_master_is_unreachable() {
       $_status_handler->init();
 
       if ( -f $_status_handler->{status_file} ) {
-        $log->warn(
+        $log->warning(
 "$_status_handler->{status_file} already exists. You might have killed manager with SIGKILL(-9), may run two or more monitoring process for the same application, or use the same working directory. Check for details, and consider setting --workdir separately."
         );
         MHA::NodeUtil::drop_file_if( $_status_handler->{status_file} );
@@ -349,7 +349,7 @@ sub wait_until_master_is_unreachable() {
       );
     }
     else {
-      $log->warn(
+      $log->warning(
 "secondary_check_script is not defined. It is highly recommended setting it to check master reachability from two or more routes."
       );
     }
@@ -368,14 +368,14 @@ sub wait_until_master_is_unreachable() {
     elsif ( $ret ne '0' ) {
       croak;
     }
-    $log->warn(
+    $log->warning(
       sprintf( "Master %s is not reachable!", $current_master->get_hostinfo() )
     );
     if ($ssh_reachable) {
-      $log->warn("SSH is reachable.");
+      $log->warning("SSH is reachable.");
     }
     else {
-      $log->warn("SSH is NOT reachable.");
+      $log->warning("SSH is NOT reachable.");
     }
     $func_rc = 0;
   };
@@ -482,7 +482,7 @@ sub wait_until_master_is_dead {
 
     # When this condition is met, master is actually alive.
     if ( !defined($status) || $status ne "master_ip_is_not_set" ) {
-      $log->warn("master is actually alive. starting monitoring again.");
+      $log->warning("master is actually alive. starting monitoring again.");
       return $RETRY;
     }
     if (
@@ -501,7 +501,7 @@ sub wait_until_master_is_dead {
     return $MHA::ManagerConst::MASTER_DEAD_RC;
   };
   if ($@) {
-    $log->warn("Got Error: $@");
+    $log->warning("Got Error: $@");
     undef $@;
     $exit_code = 1;
   }

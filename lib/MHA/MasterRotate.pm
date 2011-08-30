@@ -186,7 +186,7 @@ sub check_filter {
     my $msg = "Bad Binlog/Replication filtering rules:\n";
     $msg .= $orig_master->print_filter( 1, 0 );
     $msg .= $new_master->print_filter( 0, 0 );
-    $log->warn($msg);
+    $log->warning($msg);
     croak;
   }
 }
@@ -233,7 +233,7 @@ sub reject_update($$) {
     }
     else {
       if ( $high == 10 ) {
-        $log->warn("Proceeding.");
+        $log->warning("Proceeding.");
       }
       else {
         croak;
@@ -335,7 +335,7 @@ sub switch_master($$$$) {
     }
     else {
       if ( $high == 10 ) {
-        $log->warn("Proceeding.");
+        $log->warning("Proceeding.");
       }
       else {
         croak;
@@ -421,6 +421,7 @@ sub switch_slaves_internal {
       $pplog = Log::Dispatch->new( callbacks => $MHA::ManagerConst::log_fmt );
       $pplog->add(
         Log::Dispatch::File->new(
+          name      => 'file',
           filename  => $local_file,
           min_level => $target->{log_level},
           callbacks => $MHA::ManagerConst::add_timestamp,

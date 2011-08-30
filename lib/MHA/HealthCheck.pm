@@ -91,7 +91,7 @@ sub connect($) {
       my $msg = "Got error on getting MySQL advisory lock: ";
       $msg .= $DBI::err if ($DBI::err);
       $msg .= " ($DBI::errstr)" if ($DBI::errstr);
-      $log->warn($msg);
+      $log->warning($msg);
       return 1;
     }
   }
@@ -99,7 +99,7 @@ sub connect($) {
     my $msg = "Got error on MySQL connect: ";
     $msg .= $DBI::err if ($DBI::err);
     $msg .= " ($DBI::errstr)" if ($DBI::errstr);
-    $log->warn($msg);
+    $log->warning($msg);
     my $mysql_err = DBI->err if ( defined( DBI->err ) );
     return ( 1, $mysql_err );
   }
@@ -162,7 +162,7 @@ sub set_wait_timeout($$) {
     my $msg = "Got error on setting wait_timeout : $@ :";
     $msg .= $DBI::err if ($DBI::err);
     $msg .= " ($DBI::errstr)" if ($DBI::errstr);
-    $log->warn($msg);
+    $log->warning($msg);
   }
   else {
     $log->debug("Set short wait_timeout on master: $timeout seconds");
@@ -191,7 +191,7 @@ sub ping($) {
     undef $@;
     $msg .= $DBI::err if ($DBI::err);
     $msg .= " ($DBI::errstr)" if ($DBI::errstr);
-    $log->warn($msg) if ($log);
+    $log->warning($msg) if ($log);
     return 1;
   }
   return 0;
@@ -210,7 +210,7 @@ sub ssh_check($) {
     return 0;
   }
   else {
-    $log->warn("HealthCheck: SSH to $self->{hostname} is NOT reachable.");
+    $log->warning("HealthCheck: SSH to $self->{hostname} is NOT reachable.");
     return 1;
   }
 }
@@ -233,13 +233,13 @@ sub secondary_check($) {
     return 0;
   }
   if ( $high == 2 ) {
-    $log->warn( "At least one of monitoring servers is not reachable "
+    $log->warning( "At least one of monitoring servers is not reachable "
         . "from this script. This is likely network problem. Failover should "
         . "not happen." );
     return $high;
   }
   elsif ( $high == 3 ) {
-    $log->warn( "Master is reachable from at least one of other "
+    $log->warning( "Master is reachable from at least one of other "
         . "monitoring servers. Failover should not happen." );
     return $high;
   }
@@ -267,7 +267,7 @@ sub terminate_child($$$) {
     $child_exit_code = $? >> 8;
   };
   if ($@) {
-    $log->warn($@) if ($log);
+    $log->warning($@) if ($log);
     undef $@;
     $child_exit_code = 1;
   }
@@ -324,7 +324,7 @@ sub is_secondary_down {
         $master_is_down = 1;
       }
       else {
-        $log->warn(
+        $log->warning(
 "Secondary network check script returned errors. Failover should not start so checking server status again. Check network settings for details."
         );
       }
@@ -443,7 +443,7 @@ sub wait_until_unreachable($) {
             }
           }
           $error_count++;
-          $log->warn("Connection failed $error_count time(s)..");
+          $log->warning("Connection failed $error_count time(s)..");
           $self->handle_failing();
 
           if ( $error_count >= 3 ) {
@@ -511,11 +511,11 @@ sub wait_until_unreachable($) {
         croak "fork failed!\n";
       }
     }
-    $log->warn("Master is not reachable from health checker!");
+    $log->warning("Master is not reachable from health checker!");
   };
   if ($@) {
     my $msg = "Got error when monitoring master: $@";
-    $log->warn($msg);
+    $log->warning($msg);
     undef $@;
     return 2 if ( $self->{_already_monitored} );
     return 1;

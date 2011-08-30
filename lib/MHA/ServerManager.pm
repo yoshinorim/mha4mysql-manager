@@ -293,7 +293,7 @@ sub print_filter_rules($$) {
   foreach my $slave (@slaves) {
     $msg .= $slave->print_filter();
   }
-  $log->warn($msg);
+  $log->warning($msg);
 }
 
 sub validate_repl_filter($$) {
@@ -441,18 +441,18 @@ sub validate_slaves($$$) {
 
   foreach (@slaves) {
     if ( $_->{read_only} ne '1' ) {
-      $log->warn(
+      $log->warning(
         sprintf( " read_only=1 is not set on slave %s.\n", $_->get_hostinfo() )
       );
     }
     if ( $_->{relay_purge} ne '0' ) {
-      $log->warn(
+      $log->warning(
         sprintf( " relay_log_purge=0 is not set on slave %s.\n",
           $_->get_hostinfo() )
       );
     }
     if ( $_->{log_bin} eq '0' ) {
-      $log->warn(
+      $log->warning(
         sprintf(
           " log-bin is not set on slave %s. This host can not be a master.\n",
           $_->get_hostinfo() )
@@ -578,7 +578,7 @@ sub validate_current_master($) {
 
   # no slave is available.
   if ( !$master_ip_byslave || !$master_port_byslave ) {
-    $log->warn("Slave server is not available.");
+    $log->warning("Slave server is not available.");
     return ( $master_ip, $master_port );
   }
 
@@ -691,7 +691,7 @@ sub is_master_reachable_from_slaves($$) {
       return 1;
     }
     if ( $status{Slave_IO_Running} eq "Yes" ) {
-      $log->warn(
+      $log->warning(
         sprintf( "Master is reachable from slave %s", $_->get_hostinfo() ) );
       return 1;
     }
@@ -887,7 +887,7 @@ sub check_slave_delay($$$) {
       $target->{Exec_Master_Log_Pos} + 100000000 )
     )
   {
-    $log->warn(
+    $log->warning(
       sprintf(
 " Slave %s SQL Thread delays too much. Latest log file:%s:%d, Current log file:%s:%d. This server is not selected as a new master because recovery will take long time.\n",
         $target->get_hostinfo(),        $latest->{Master_Log_File},
@@ -1109,7 +1109,7 @@ sub get_current_alive_master($) {
   }
   my $m = $self->get_alive_server_by_ipport( $ip, $port );
   unless ($m) {
-    $log->warn(
+    $log->warning(
 "MySQL master is not currently alive or not found from configuration file!"
     );
     return;

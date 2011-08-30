@@ -237,7 +237,7 @@ sub read_config($) {
     $sd = $self->parse_server_default( $global_cfg->{"server default"} );
   }
   else {
-    $log->warn(
+    $log->warning(
       "Global configuration file $self->{globalfile} not found. Skipping.")
       if ($log);
     $sd = new MHA::Server();
