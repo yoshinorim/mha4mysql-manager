@@ -1089,8 +1089,13 @@ sub change_master_and_start_slave {
     $master->{port}, $master_log_file, $master_log_pos, $master->{repl_user},
     $master->{repl_password} );
   $log->info(" Executed CHANGE MASTER.");
-  my $ret = $target->start_slave($log);
 
+  # After executing CHANGE MASTER, relay_log_purge is automatically disabled.
+  # If the original value is 0, we should turn to 0 explicitly.
+  unless ( $target->{relay_purge} ) {
+    $target->disable_relay_log_purge();
+  }
+  my $ret = $target->start_slave($log);
   unless ($ret) {
     $log->info(" Slave started.");
   }

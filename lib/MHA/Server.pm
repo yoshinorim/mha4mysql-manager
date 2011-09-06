@@ -241,7 +241,6 @@ sub connect_and_get_status {
   else {
     $self->{read_only}   = $read_only;
     $self->{relay_purge} = $relay_purge;
-
     my $master_bin_addr = gethostbyname( $status{Master_Host} );
     my $master_ip = sprintf( "%vd", $master_bin_addr ) if ($master_bin_addr);
     unless ($master_ip) {
@@ -344,6 +343,15 @@ sub set_default_max_allowed_packet {
     );
     return 0;
   }
+}
+
+sub disable_relay_log_purge {
+  my ( $self, $log ) = @_;
+  $log = $self->{logger} unless ($log);
+  my $dbhelper = $self->{dbhelper};
+  $dbhelper->disable_relay_log_purge();
+  $log->debug("Explicitly disabled relay_log_purge.");
+  return 0;
 }
 
 sub current_slave_position {

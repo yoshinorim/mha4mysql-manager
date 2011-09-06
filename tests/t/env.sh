@@ -86,3 +86,13 @@ COUNT=`mysql -h127.0.0.1 --port=$2 test -e "select count(*) as value from t1\G" 
   fi
 }
 
+check_relay_purge() {
+PURGE=`mysql -h127.0.0.1 --port=$2 test -e "select @@global.relay_log_purge\G" | grep global | awk '{print $2}'`
+  if [ "$PURGE" = "$3" ]; then
+    return
+  else
+    echo "$1 [Fail (relay_log_purge $PURGE is not equal to expected value $3)]"
+    exit 1
+  fi
+}
+

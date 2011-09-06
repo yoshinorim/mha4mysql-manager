@@ -241,6 +241,11 @@ sub is_relay_log_purge($) {
   return MHA::SlaveUtil::is_relay_log_purge( $self->{dbh} );
 }
 
+sub disable_relay_log_purge($) {
+  my $self = shift;
+  return MHA::SlaveUtil::disable_relay_log_purge( $self->{dbh} );
+}
+
 sub get_relay_log_info_type {
   my ( $self, $mysql_version ) = @_;
   return MHA::SlaveUtil::get_relay_log_info_type( $self->{dbh},
