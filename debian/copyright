@@ -1,0 +1,15 @@
+It was downloaded from http://code.google.com/p/mysql-master-ha/
+
+Upstream Author(s):
+  Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
+
+Copyright:
+  Copyright (C) 2011 DeNA Co.,Ltd.
+
+License:
+  GPLv2
+
+  See `cat /usr/share/common-licenses/GPL-2`.
+
+The Debian packaging is done by Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com> in 2011, and is licensed under the GPL v2 license.
+

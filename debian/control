@@ -1,0 +1,13 @@
+Source: mysql-masterha-manager
+Section: perl
+Priority: optional
+Build-Depends: debhelper (>= 7.2.13)
+Build-Depends-Indep: perl
+Maintainer: Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
+Standards-Version: 3.9.1
+Homepage: http://code.google.com/p/mysql-master-ha/
+
+Package: mysql-masterha-manager
+Architecture: all
+Depends: ${misc:Depends}, ${perl:Depends}, libdbi-perl, libdbd-mysql-perl, libconfig-tiny-perl, liblog-dispatch-perl, libparallel-forkmanager-perl, mysql-masterha-node
+Description: MySQL Master High Availability Manager and Tools, Manager Package

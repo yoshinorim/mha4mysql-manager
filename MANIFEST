@@ -9,6 +9,11 @@ bin/masterha_master_switch
 bin/masterha_secondary_check
 bin/masterha_stop
 COPYING
+debian/changelog
+debian/compat
+debian/control
+debian/copyright
+debian/rules
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
 inc/Module/Install/AutoInstall.pm
