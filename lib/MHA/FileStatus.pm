@@ -76,13 +76,13 @@ sub update_status {
   my $master_host   = $self->{master_host};
   my $out;
   if ( -f $file ) {
-    open( $out, "+< $file" ) or croak "$!:$file";
+    open( $out, "+<", $file ) or croak "$!:$file";
     flock( $out, 2 );
     truncate( $out, 0 );
     seek( $out, 0, 0 );
   }
   else {
-    open( $out, "> $file" ) or croak "$!:$file";
+    open( $out, ">", $file ) or croak "$!:$file";
   }
   print $out "$$\t$status_string";
   print $out "\tmaster:$master_host" if ($master_host);
@@ -92,13 +92,17 @@ sub update_status {
 sub read_status {
   my $self = shift;
   my $file = $self->{status_file};
-  open( my $in, "+< $file" ) or croak "$!:$file";
+  open( my $in, "+<", $file ) or croak "$!:$file";
   flock( $in, 2 );
   my $line          = readline($in);
   my @values        = split( /\t/, $line );
   my $pid           = $values[0];
   my $status_string = $values[1];
-  my $master_info   = $values[2] if ( $values[2] );
+  my $master_info;
+
+  if ( $values[2] ) {
+    $master_info = $values[2];
+  }
   close($in);
   return ( $pid, $status_string, $master_info );
 }

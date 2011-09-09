@@ -43,7 +43,8 @@ my $abort_timeout = 5;
 sub get_masterha_daemontool_appnames {
   opendir my $dir, "/service";
   my @dirs =
-    map { $_ =~ s/^masterha_//; $_ } grep { m/^masterha_/ } readdir $dir;
+    map { my $s = $_; $s =~ s/^masterha_//; $s }
+    grep { m/^masterha_/ } readdir $dir;
   @dirs = sort @dirs;
   closedir $dir;
   return @dirs;

@@ -51,6 +51,8 @@ samples/scripts/master_ip_failover
 samples/scripts/master_ip_online_change
 samples/scripts/power_manager
 samples/scripts/send_report
+t/99-perlcritic.t
+t/perlcriticrc
 tests/intro.txt
 tests/run_suites.sh
 tests/t/bulk_tran_insert.pl

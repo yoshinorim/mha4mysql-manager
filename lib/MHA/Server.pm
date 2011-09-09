@@ -242,7 +242,10 @@ sub connect_and_get_status {
     $self->{read_only}   = $read_only;
     $self->{relay_purge} = $relay_purge;
     my $master_bin_addr = gethostbyname( $status{Master_Host} );
-    my $master_ip = sprintf( "%vd", $master_bin_addr ) if ($master_bin_addr);
+    my $master_ip;
+    if ($master_bin_addr) {
+      $master_ip = sprintf( "%vd", $master_bin_addr );
+    }
     unless ($master_ip) {
       $log->error(
         sprintf(

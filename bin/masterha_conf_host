@@ -79,7 +79,10 @@ if ( $command eq "add" ) {
   unless ($hostname) {
     die "--hostname=<new_host_name> must be set.\n";
   }
-  my @param_array = split( /;/, $params ) if ($params);
+  my @param_array;
+  if ($params) {
+    @param_array = split( /;/, $params );
+  }
   MHA::Config::add_block_and_save( $conf, $block, $hostname, \@param_array );
 }
 elsif ( $command eq "delete" || $command eq "remove" ) {

@@ -100,8 +100,7 @@ sub connect($) {
     $msg .= $DBI::err if ($DBI::err);
     $msg .= " ($DBI::errstr)" if ($DBI::errstr);
     $log->warning($msg);
-    my $mysql_err = DBI->err if ( defined( DBI->err ) );
-    return ( 1, $mysql_err );
+    return ( 1, $DBI::err );
   }
 }
 
