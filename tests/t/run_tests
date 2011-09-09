@@ -37,7 +37,7 @@ foreach my $test_file (@test_files) {
     foreach my $log (@log_files) {
       chomp($log);
       next if ( $log =~ /^t_/ );
-      copy $log, "$test_file.$mysql_version.$log";
+      move $log, "$test_file.$mysql_version.$log";
     }
   }
 }
