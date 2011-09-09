@@ -23,6 +23,9 @@ fail_if_zero $0 $?
 fail_if_zero $0 $?
 
 ./kill_m.sh
+
+masterha_check_repl --conf=$CONF > /dev/null 2>&1
+fail_if_zero $0 $?
 ./run.sh
 fail_if_zero $0 $?
 

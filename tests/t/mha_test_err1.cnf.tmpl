@@ -8,13 +8,6 @@ master_ip_failover_script=""
 master_ip_online_change_script=""
 report_script=""
 
-[server1]
-hostname=127.0.0.1
-port=10000
-master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/master/data/
-candidate_master=1
-node_label=sandbox master
-
 [server2]
 hostname=127.0.0.1
 port=10001
@@ -32,14 +25,12 @@ node_label=sandbox slave2
 hostname=127.0.0.1
 port=10003
 master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node3/data/
-ignore_fail=1
 node_label=sandbox slave3
 
 [server5]
 hostname=127.0.0.1
 port=10004
 master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node4/data/
-ignore_fail=1
 node_label=sandbox slave4
 
 

@@ -2,6 +2,7 @@
 user=root
 password=msandbox
 ping_interval=1
+multi_tier_slave=1
 init_conf_load_script=""
 shutdown_script=""
 master_ip_failover_script=""
@@ -32,14 +33,12 @@ node_label=sandbox slave2
 hostname=127.0.0.1
 port=10003
 master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node3/data/
-ignore_fail=1
 node_label=sandbox slave3
 
 [server5]
 hostname=127.0.0.1
 port=10004
 master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node4/data/
-ignore_fail=1
 node_label=sandbox slave4
 
 
