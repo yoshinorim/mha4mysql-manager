@@ -19,7 +19,7 @@ mysql $S2 test -e "stop slave io_thread"
 mysql $M test -e "insert into t1 values(99999, 300, 'bbbaaaaaaa');"
 
 ./run_bg.sh --conf=$CONF_IGNORE
-sleep 20
+wait_until_manager_start $0 --conf=$CONF_IGNORE
 ./kill_m.sh
 sleep 50
 

@@ -6,7 +6,7 @@ mysql $M test -e "insert into t1 values (100, 100, 100)"
 check_sql_stop $0 $S2P
 
 ./run_bg.sh &
-sleep 20
+wait_until_manager_start $0
 check_sql_stop $0 $S2P
 
 masterha_check_status --conf=$CONF  > /dev/null

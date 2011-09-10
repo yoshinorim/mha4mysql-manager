@@ -15,7 +15,7 @@ mysql $S4 test -e "stop slave io_thread"
 perl insert.pl $MP $MYSQL_USER $MYSQL_PWD 1001 3000 0
 
 ./run_bg.sh --conf=$CONF_IGNORE
-sleep 20
+wait_until_manager_start $0 --conf=$CONF_IGNORE
 ./kill_m.sh
 sleep 50
 

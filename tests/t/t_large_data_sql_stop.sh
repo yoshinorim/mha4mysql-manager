@@ -20,7 +20,7 @@ check_sql_stop $0 $S2P
 perl tran_insert.pl $MP $MYSQL_USER $MYSQL_PWD 1001 100000 1000
 
 ./run_bg.sh &
-sleep 20
+wait_until_manager_start $0
 check_sql_stop $0 $S2P
 masterha_check_status --conf=$CONF > /dev/null
 fail_if_nonzero $0 $?

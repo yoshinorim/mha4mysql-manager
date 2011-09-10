@@ -96,3 +96,20 @@ PURGE=`mysql -h127.0.0.1 --port=$2 test -e "select @@global.relay_log_purge\G" |
   fi
 }
 
+wait_until_manager_start() {
+  i=1
+  while :
+  do
+    masterha_check_status --conf=$CONF $2 > /dev/null 2>&1
+    RC=$?
+    if [ "$RC" = "0" ]; then
+      break
+    fi
+    i=`expr $i + 1`
+    if [ $i -gt 120 ]; then
+      echo "$1 [Fail (master_check_status does not become running within 120 seconds)]"
+      exit 1
+    fi
+    sleep 1
+  done
+}

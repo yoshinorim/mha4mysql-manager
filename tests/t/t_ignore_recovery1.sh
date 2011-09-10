@@ -3,7 +3,7 @@
 mysql $M test -e "insert into t1 values (100, 100, 100)"
 
 ./run_bg.sh --conf=$CONF_IGNORE
-sleep 20
+wait_until_manager_start $0 --conf=$CONF_IGNORE
 ./stop_s4.sh
 ./kill_m.sh
 sleep 50
