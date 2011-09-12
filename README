@@ -1,2 +1,2 @@
-MySQL-MasterHA-Manager - MySQL manager and tools for automating master failover and fast master switch. This package contains manager scripts. See http://code.google.com/p/mysql-master-ha/wiki/TableOfContents?tm=6 for details.
+MySQL-MasterHA-Manager - MySQL Master High Availability manager and tools (MHA) for automating master failover and fast master switch. This package contains manager scripts. See http://code.google.com/p/mysql-master-ha/wiki/TableOfContents?tm=6 for details.
 
