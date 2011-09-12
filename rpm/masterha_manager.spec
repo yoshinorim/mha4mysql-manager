@@ -1,5 +1,5 @@
-Summary: MySQL-MasterHA-Manager Perl module
-Name: MySQL-MasterHA-Manager
+Summary: Master High Availability Manager and Tools for MySQL, Manager Package
+Name: mha4mysql-manager
 Version: 0.52
 Release: 0
 License: GPL v2
@@ -12,14 +12,14 @@ BuildRequires: perl(ExtUtils::MakeMaker) >= 6.42
 Requires: perl(Config::Tiny)
 Requires: perl(Log::Dispatch)
 Requires: perl(Parallel::ForkManager)
-Requires: MySQL-MasterHA-Node
-Source0: MySQL-MasterHA-Manager-%{version}.tar.gz
+Requires: mha4mysql-node
+Source0: mha4mysql-manager-%{version}.tar.gz
 
 %description
 %{summary}.
 
 %prep
-%setup -q -n MySQL-MasterHA-Manager-%{version}
+%setup -q -n mha4mysql-manager-%{version}
 
 %build
 CFLAGS="$RPM_OPT_FLAGS" %{__perl} Makefile.PL INSTALLDIRS="vendor" INSTALLVENDORLIB=/usr/lib/perl5/vendor_perl

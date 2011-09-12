@@ -1,6 +1,6 @@
 use inc::Module::Install;
 
-name 'MySQL-MasterHA-Manager';
+name 'mha4mysql-manager';
 
 version_from 'lib/MHA/ManagerConst.pm';
 
