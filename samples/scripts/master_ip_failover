@@ -86,7 +86,7 @@ sub main {
 
       ## Update master ip on the catalog database, etc
       FIXME_xxx;
-      
+
       $exit_code = 0;
     };
     if ($@) {
