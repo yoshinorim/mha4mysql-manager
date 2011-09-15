@@ -384,7 +384,7 @@ sub main {
   }
 
   # Get server type (ilo/drac, etc) and administrative IP address.
-  my ( $admin_addr, $server_type ) = XXXXXXXXXXXXXX( $host, $ip );
+  my ( $admin_addr, $server_type ) = FIXME_xxx( $host, $ip );
   if ( $command eq "start" ) {
     $rc = start( $host, $admin_addr, $server_type );
   }
@@ -400,7 +400,7 @@ sub main {
 
   # Do other way to stop host
   if ( $rc == $COMMAND_NOT_SUPPORTED ) {
-    $rc = XXXXXXXXXXXXXX( $command, $host, $ip );
+    $rc = FIXME_xxx( $command, $host, $ip );
   }
 
   if ( $rc == 0 ) {
