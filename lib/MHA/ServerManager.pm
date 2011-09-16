@@ -882,8 +882,9 @@ sub read_slave_status($) {
 
     # This should not happen so die if it happens
     if ( $status{Status} ) {
-      $log->error(
-        sprintf( "Checking slave status failed. err= " . $status{Errstr} ) );
+      my $msg = "Checking slave status failed.";
+      $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+      $log->error($msg);
       croak;
     }
 

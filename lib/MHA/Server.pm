@@ -230,12 +230,10 @@ sub connect_and_get_status {
     $self->{not_slave} = 1;
   }
   elsif ($sstatus) {
-    $log->error(
-      sprintf(
-        "Checking slave status failed on %s. err= %s",
-        $self->get_hostinfo(), $status{Errstr}
-      )
-    );
+    my $msg =
+      sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
+    $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+    $log->error($msg);
     croak;
   }
   else {
@@ -363,7 +361,10 @@ sub current_slave_position {
   my $dbhelper = $self->{dbhelper};
   my %status   = $dbhelper->check_slave_status();
   if ( $status{Status} ) {
-    $log->error( "checking slave status failed. err= " . $status{Errstr} );
+    my $msg =
+      sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
+    $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+    $log->error($msg);
     return;
   }
   $self->{Master_Log_File}       = $status{Master_Log_File};
@@ -437,7 +438,10 @@ sub wait_until_relay_log_applied {
   my $dbhelper = $self->{dbhelper};
   my %status   = $dbhelper->wait_until_relay_log_applied();
   if ( $status{Status} ) {
-    $log->error("Got error: $status{Errstr}");
+    my $msg =
+      sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
+    $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+    $log->error($msg);
   }
   return $status{Status};
 }
@@ -614,12 +618,10 @@ sub wait_until_slave_starts($$) {
   for ( my $i = 0 ; $i < $retry_count ; $i++ ) {
     my %status = $dbhelper->check_slave_status();
     if ( $status{Status} ) {
-      $log->error(
-        sprintf(
-          "Checking slave status failed on %s. err=%s",
-          $self->get_hostinfo(), $status{Errstr}
-        )
-      );
+      my $msg =
+        sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
+      $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+      $log->error($msg);
       return 1;
     }
     if ( $type eq "IO" ) {
@@ -666,12 +668,10 @@ sub wait_until_slave_stops {
   for ( my $i = 0 ; $i < $retry_count ; $i++ ) {
     my %status = $dbhelper->check_slave_status();
     if ( $status{Status} ) {
-      $log->error(
-        sprintf(
-          "Checking slave status failed on %s. err=%s",
-          $self->get_hostinfo(), $status{Errstr}
-        )
-      );
+      my $msg =
+        sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
+      $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+      $log->error($msg);
       return 1;
     }
     if ( $type eq "IO" ) {
@@ -778,12 +778,10 @@ sub is_sql_thread_error {
   my $dbhelper = $self->{dbhelper};
   my %status   = $dbhelper->check_slave_status();
   if ( $status{Status} ) {
-    $log->error(
-      sprintf(
-        "Checking slave status failed on %s. err=%s",
-        $self->get_hostinfo(), $status{Errstr}
-      )
-    );
+    my $msg =
+      sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
+    $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+    $log->error($msg);
     return 1;
   }
   return 0 if ( $status{Slave_SQL_Running} eq "Yes" );
@@ -809,12 +807,10 @@ sub start_sql_thread_if {
   my $dbhelper = $self->{dbhelper};
   my %status   = $dbhelper->check_slave_status();
   if ( $status{Status} ) {
-    $log->error(
-      sprintf(
-        "Checking slave status failed on %s. err=%s",
-        $self->get_hostinfo(), $status{Errstr}
-      )
-    );
+    my $msg =
+      sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
+    $msg .= " err=$status{Errstr}" if ( $status{Errstr} );
+    $log->error($msg);
     return 1;
   }
   return 0 if ( $status{Slave_SQL_Running} eq "Yes" );
