@@ -1,11 +1,11 @@
 #!/bin/sh
 
 if [ "A$VERSION" = "A" ]; then
-  export VERSION=5.5.15
+  export VERSION=5.5.16
 fi
 
 if [ "A$VERSION_DIR" = "A" ]; then
-  export VERSION_DIR=5_5_15
+  export VERSION_DIR=5_5_16
 fi
 
 if [ "A$USE_ROW_FORMAT" = "A" ]; then
