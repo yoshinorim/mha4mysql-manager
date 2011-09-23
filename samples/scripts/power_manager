@@ -277,7 +277,7 @@ sub stopssh {
 
   print "Killing all mysqld instances on $real_host..\n";
   $command =
-"\"killall -9 mysqld mysqld_safe; a=\\\`pidof mysqld\\\`; if [ \"a\\\$a\" = \"a\" ]; then exit 10; fi; sleep 1; a=\\\`pidof mysqld\\\`; if [ \"a\\\$a\" = \"a\" ]; then exit 10; else exit 1; fi\"";
+"\"killall -9 mysqld mysqld_safe; a=\\\`pidof mysqld\\\`; if [ \\\"a\\\$a\\\" = \\\"a\\\" ]; then exit 10; fi; sleep 1; a=\\\`pidof mysqld\\\`; if [ \\\"a\\\$a\\\" = \\\"a\\\" ]; then exit 10; else exit 1; fi\"";
   ( $high_ret, $low_ret ) = MHA::ManagerUtil::exec_system(
     "ssh $ssh_user_host $MHA::ManagerConst::SSH_OPT_CHECK $command");
   if ( $high_ret == $SSH_STOP_OK && $low_ret == 0 ) {
