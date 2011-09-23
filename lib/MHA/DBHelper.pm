@@ -608,6 +608,7 @@ sub get_num_running_threads_util {
 
     if ($update_only) {
       next if ( defined($command) && $command eq "Sleep" );
+      next if ( defined($command) && $command eq "Connect" );
       next if ( defined($info) && $info =~ m/^select/i );
       next if ( defined($info) && $info =~ m/^show/i );
     }
