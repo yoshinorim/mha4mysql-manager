@@ -569,10 +569,7 @@ sub reset_slave_info($) {
     $log->error(" Stopping slave failed!");
     return 1;
   }
-  $dbhelper->reset_slave();
-
-  # Obsolete. Throws error on 5.5+
-  #  $dbhelper->reset_slave_master_host();
+  $dbhelper->reset_slave_master_host();
   my %status = $dbhelper->check_slave_status();
   if ( $status{Status} == 1 ) {
     $log->debug(

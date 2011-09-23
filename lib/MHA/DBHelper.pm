@@ -64,7 +64,7 @@ use constant Change_Master_SQL =>
 "CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
 use constant Change_Master_NoPass_SQL =>
 "CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
-use constant Reset_Slave_Master_Host_SQL => "CHANGE MASTER TO MASTER_HOST=''";
+use constant Reset_Slave_Master_Host_SQL => "RESET SLAVE /*!50516 ALL */";
 use constant Reset_Slave_SQL             => "RESET SLAVE";
 use constant Show_Slave_Status_SQL       => "SHOW SLAVE STATUS";
 
