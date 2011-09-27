@@ -604,6 +604,7 @@ sub find_slave_with_all_relay_logs {
     }
     else {
       $command .= " --relay_log_info=$latest_slave->{relay_log_info} ";
+      $command .= " --relay_dir=$latest_slave->{datadir} ";
     }
     if ( $latest_slave->{log_level} eq "debug" ) {
       $command .= " --debug ";
@@ -816,6 +817,7 @@ sub generate_diff_from_readpos {
   }
   else {
     $command .= " --relay_log_info=$latest_slave->{relay_log_info} ";
+    $command .= " --relay_dir=$latest_slave->{datadir} ";
   }
   unless ( $target->{handle_raw_binlog} ) {
     $command .= " --target_version=$target->{mysql_version} ";
@@ -1003,6 +1005,7 @@ sub gen_diff_from_exec_to_read {
     }
     else {
       $command .= " --relay_log_info=$target->{relay_log_info} ";
+      $command .= " --binlog_dir=$target->{datadir} ";
     }
     unless ( $target->{handle_raw_binlog} ) {
       $command .= " --oldest_version=$target->{mysql_version} ";

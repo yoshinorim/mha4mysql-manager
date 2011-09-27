@@ -218,6 +218,7 @@ sub connect_and_get_status {
       );
       croak;
     }
+    $self->{datadir} = $dbhelper->get_datadir();
   }
 
   my %status = $dbhelper->check_slave_status();

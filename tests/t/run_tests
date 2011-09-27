@@ -8,9 +8,13 @@ use File::Copy;
 
 my $mysql_version;
 my $use_row_format;
+my $init_script;
+my $tests;
 GetOptions(
   'mysql_version=s' => \$mysql_version,
   'use_row_format'  => \$use_row_format,
+  'init_script=s'   => \$init_script,
+  'tests=s'         => \$tests,
 );
 
 if ($mysql_version) {
@@ -26,7 +30,16 @@ else {
   $ENV{'USE_ROW_FORMAT'} = "";
 }
 
-my @test_files = `ls t_*.sh`;
+if ($init_script) {
+  $ENV{'INIT_SCRIPT'} = $init_script;
+}else {
+  $ENV{'INIT_SCRIPT'} = "";
+}
+unless ($tests) {
+  $tests= "*";
+}
+
+my @test_files = `ls t_$tests.sh`;
 foreach my $test_file (@test_files) {
   chomp($test_file);
   my $rc = system("sh $test_file");

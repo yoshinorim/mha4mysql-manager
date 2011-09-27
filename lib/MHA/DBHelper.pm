@@ -79,6 +79,7 @@ use constant Stop_Slave_SQL         => "STOP SLAVE";
 use constant Start_SQL_Thread_SQL   => "START SLAVE SQL_THREAD";
 use constant Stop_SQL_Thread_SQL    => "STOP SLAVE SQL_THREAD";
 use constant Get_Basedir_SQL        => "SELECT \@\@global.basedir AS Value";
+use constant Get_Datadir_SQL        => "SELECT \@\@global.datadir AS Value";
 use constant Get_MaxAllowedPacket_SQL =>
   "SELECT \@\@global.max_allowed_packet AS Value";
 use constant Set_MaxAllowedPacket1G_SQL =>
@@ -229,6 +230,11 @@ sub is_read_only($) {
 sub get_basedir($) {
   my $self = shift;
   return $self->get_variable(Get_Basedir_SQL);
+}
+
+sub get_datadir($) {
+  my $self = shift;
+  return $self->get_variable(Get_Datadir_SQL);
 }
 
 sub get_version($) {

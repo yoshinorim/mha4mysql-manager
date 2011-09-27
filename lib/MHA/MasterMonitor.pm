@@ -113,6 +113,7 @@ sub check_slave_env() {
     }
     else {
       $command .= " --relay_log_info=$s->{relay_log_info} ";
+      $command .= " --relay_dir=$s->{datadir} ";
     }
     if ( $s->{log_level} eq "debug" ) {
       $command .= " --debug ";

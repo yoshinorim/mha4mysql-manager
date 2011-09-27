@@ -56,6 +56,7 @@ t/perlcriticrc
 tests/intro.txt
 tests/run_suites.sh
 tests/t/bulk_tran_insert.pl
+tests/t/change_relay_log_info.sh
 tests/t/check
 tests/t/env.sh
 tests/t/init.sh
