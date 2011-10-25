@@ -511,7 +511,12 @@ sub switch_slaves($$$$$$) {
     $log->info();
     $log->info("* Phase 5: New master cleanup phease..");
     $log->info();
-    $ret = $new_master->reset_slave_on_new_master();
+    if ( $new_master->{skip_reset_slave} ) {
+      $log->info("Skipping RESET SLAVE on the new master.");
+    }
+    else {
+      $ret = $new_master->reset_slave_on_new_master();
+    }
   }
   if ( $ret eq '0' ) {
     my $message = sprintf( "Switching master to %s completed successfully.",

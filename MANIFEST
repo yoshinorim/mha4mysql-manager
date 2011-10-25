@@ -59,6 +59,7 @@ tests/t/bulk_tran_insert.pl
 tests/t/change_relay_log_info.sh
 tests/t/check
 tests/t/env.sh
+tests/t/force_start_m.sh
 tests/t/init.sh
 tests/t/insert.pl
 tests/t/kill_m.sh
@@ -72,6 +73,7 @@ tests/t/mha_test_mm_online.cnf.tmpl
 tests/t/mha_test_multi.cnf.tmpl
 tests/t/mha_test_multi_online.cnf.tmpl
 tests/t/mha_test_online.cnf.tmpl
+tests/t/mha_test_reset.cnf.tmpl
 tests/t/my-row.cnf
 tests/t/my.cnf
 tests/t/run.sh
@@ -116,6 +118,7 @@ tests/t/t_mm.sh
 tests/t/t_mm_3tier.sh
 tests/t/t_mm_3tier_subm_dead.sh
 tests/t/t_mm_normal.sh
+tests/t/t_mm_normal_skip_reset.sh
 tests/t/t_mm_noslaves.sh
 tests/t/t_mm_ro_fail.sh
 tests/t/t_mm_subm_dead.sh
@@ -136,6 +139,7 @@ tests/t/t_online_3tier_slave_keep.sh
 tests/t/t_online_mm.sh
 tests/t/t_online_mm_3tier.sh
 tests/t/t_online_mm_3tier_slave.sh
+tests/t/t_online_mm_skip_reset.sh
 tests/t/t_online_normal.sh
 tests/t/t_online_slave.sh
 tests/t/t_online_slave_fail.sh

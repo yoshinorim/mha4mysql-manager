@@ -1447,14 +1447,20 @@ sub recover_slaves($$$$$) {
     $log->info();
     $log->info("* Phase 5: New master cleanup phease..");
     $log->info();
-    $log->info("Resetting slave info on the new master..");
-    $reset_slave_rc = $new_master->reset_slave_on_new_master();
-    if ( $reset_slave_rc eq '0' ) {
-      $mail_body .=
-        "$new_master->{hostname}: Resetting slave info succeeded.\n";
+    if ( $new_master->{skip_reset_slave} ) {
+      $log->info("Skipping RESET SLAVE on the new master.");
+      $reset_slave_rc = 0;
     }
     else {
-      $mail_body .= "$new_master->{hostname}: Resetting slave info failed.\n";
+      $log->info("Resetting slave info on the new master..");
+      $reset_slave_rc = $new_master->reset_slave_on_new_master();
+      if ( $reset_slave_rc eq '0' ) {
+        $mail_body .=
+          "$new_master->{hostname}: Resetting slave info succeeded.\n";
+      }
+      else {
+        $mail_body .= "$new_master->{hostname}: Resetting slave info failed.\n";
+      }
     }
   }
   my $has_failed_servers = report_failed_slaves($dead_master);
