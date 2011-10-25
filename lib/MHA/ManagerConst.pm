@@ -76,6 +76,9 @@ our $SSH_OPT_ALIVE = $MHA::NodeConst::SSH_OPT_ALIVE;
 our $SSH_OPT_CHECK =
 "-o StrictHostKeyChecking=no -o ConnectTimeout=4 -o PasswordAuthentication=no";
 
+our $PING_TYPE_CONNECT = "CONNECT";
+our $PING_TYPE_SELECT  = "SELECT";
+
 our $DEFAULT_GLOBAL_CONF = "/etc/masterha_default.cnf";
 
 our $log_fmt = sub {

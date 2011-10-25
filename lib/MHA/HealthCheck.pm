@@ -48,6 +48,7 @@ sub new {
     secondary_check_script => undef,
     logger                 => undef,
     logfile                => undef,
+    ping_type              => undef,
 
     # internal (read/write) variables
     _tstart            => undef,
@@ -63,21 +64,43 @@ sub new {
   return bless $self, $class;
 }
 
-sub connect($) {
-  my $self = shift;
-  my $log  = $self->{logger};
+sub connect {
+  my $self                  = shift;
+  my $connect_timeout       = shift;
+  my $wait_timeout          = shift;
+  my $advisory_lock_timeout = shift;
+  my $log_connect_error     = shift;
+  my $raise_error           = shift;
+  if ( !defined($connect_timeout) ) {
+    $connect_timeout = $self->{interval};
+  }
+  if ( !defined($wait_timeout) ) {
+    $wait_timeout = $connect_timeout * 2;
+  }
+  if ( !defined($advisory_lock_timeout) ) {
+    $advisory_lock_timeout = $wait_timeout * 2;
+  }
+  if ( !defined($log_connect_error) ) {
+    $log_connect_error = 1;
+  }
+  if ( !defined($raise_error) ) {
+    $raise_error = 0;
+  }
+  my $log = $self->{logger};
   $self->{dbh} = DBI->connect(
     "DBI:mysql:;host=$self->{ip};"
-      . "port=$self->{port};mysql_connect_timeout=$self->{interval}",
-    $self->{user}, $self->{password}, { PrintError => 0, RaiseError => 0 }
+      . "port=$self->{port};mysql_connect_timeout=$connect_timeout",
+    $self->{user},
+    $self->{password},
+    { PrintError => 0, RaiseError => $raise_error }
   );
   if ( $self->{dbh} ) {
     $log->debug("Connected on master.");
     $self->{dbh}->{InactiveDestroy} = 1;
-    my $timeout = ceil( $self->{interval} ) * 2;
-    $self->set_wait_timeout($timeout);
+    $self->set_wait_timeout($wait_timeout);
     my $rc =
-      MHA::SlaveUtil::get_monitor_advisory_lock( $self->{dbh}, $timeout * 2 );
+      MHA::SlaveUtil::get_monitor_advisory_lock( $self->{dbh},
+      $advisory_lock_timeout );
     if ( $rc == 0 ) {
       return 0;
     }
@@ -88,7 +111,7 @@ sub connect($) {
       croak;
     }
     else {
-      my $msg = "Got error on getting MySQL advisory lock: ";
+      my $msg = "Got unexpected error on getting MySQL advisory lock: ";
       $msg .= $DBI::err if ($DBI::err);
       $msg .= " ($DBI::errstr)" if ($DBI::errstr);
       $log->warning($msg);
@@ -99,9 +122,21 @@ sub connect($) {
     my $msg = "Got error on MySQL connect: ";
     $msg .= $DBI::err if ($DBI::err);
     $msg .= " ($DBI::errstr)" if ($DBI::errstr);
-    $log->warning($msg);
+    if ($log_connect_error) {
+      $log->warning($msg);
+    }
+    else {
+      $log->debug($msg);
+    }
     return ( 1, $DBI::err );
   }
+}
+
+sub disconnect_if {
+  my $self = shift;
+  my $dbh  = $self->{dbh};
+  $dbh->disconnect() if ($dbh);
+  $self->{dbh} = undef;
 }
 
 sub set_ping_interval($$) {
@@ -168,7 +203,39 @@ sub set_wait_timeout($$) {
   }
 }
 
-sub ping($) {
+sub ping_connect($) {
+  my $self = shift;
+  my $log  = $self->{logger};
+  my $dbh;
+  my $rc          = 1;
+  my $max_retries = 2;
+  eval {
+    my $ping_start = [gettimeofday];
+    while ( !$self->{dbh} && $max_retries-- ) {
+      eval { $rc = $self->connect( 1, $self->{interval}, 0, 0, 1 ); };
+      if ( !$self->{dbh} && $@ ) {
+        die $@ if ( !$max_retries );
+      }
+    }
+    $rc = $self->ping_select();
+
+    # To hold advisory lock for some periods of time
+    $self->sleep_until( $ping_start, $self->{interval} - 1.5 );
+    $self->disconnect_if();
+  };
+  if ($@) {
+    my $msg = "Got error on MySQL connect ping: $@";
+    undef $@;
+    $msg .= $DBI::err if ($DBI::err);
+    $msg .= " ($DBI::errstr)" if ($DBI::errstr);
+    $log->warning($msg) if ($log);
+    $rc = 1;
+  }
+  return 2 if ( $self->{_already_monitored} );
+  return $rc;
+}
+
+sub ping_select($) {
   my $self = shift;
   my $log  = $self->{logger};
   my $dbh  = $self->{dbh};
@@ -186,7 +253,7 @@ sub ping($) {
     }
   };
   if ($@) {
-    my $msg = "Got error on MySQL ping: ";
+    my $msg = "Got error on MySQL select ping: ";
     undef $@;
     $msg .= $DBI::err if ($DBI::err);
     $msg .= " ($DBI::errstr)" if ($DBI::errstr);
@@ -445,10 +512,18 @@ sub update_status_ok {
 }
 
 sub sleep_until {
-  my $self    = shift;
-  my $elapsed = tv_interval( $self->{_tstart} );
-  if ( $self->{interval} > $elapsed ) {
-    sleep( $self->{interval} - $elapsed );
+  my $self     = shift;
+  my $start    = shift;
+  my $interval = shift;
+  unless ($start) {
+    $start = $self->{_tstart};
+  }
+  if ( !defined($interval) ) {
+    $interval = $self->{interval};
+  }
+  my $elapsed = tv_interval($start);
+  if ( $interval > $elapsed ) {
+    sleep( $interval - $elapsed );
   }
 }
 
@@ -503,8 +578,12 @@ sub wait_until_unreachable($) {
 
         # connection ok
         $self->{_need_reconnect} = 0;
-        $log->info("Ping succeeded, sleeping until it doesn't respond..");
+        $log->info(
+"Ping($self->{ping_type}) succeeded, waiting until MySQL doesn't respond.."
+        );
       }
+      $self->disconnect_if()
+        if ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_CONNECT );
 
       if ( my $pid = fork ) {
 
@@ -527,6 +606,10 @@ sub wait_until_unreachable($) {
           $self->kill_sec_check();
           $self->kill_ssh_check();
         }
+        elsif ( $child_exit_code == 2 ) {
+          $self->{_already_monitored} = 1;
+          croak;
+        }
         else {
 
           # failed on child
@@ -540,9 +623,15 @@ sub wait_until_unreachable($) {
 
         # Child process
         eval {
-          if ( $self->ping() )
+          if ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_CONNECT )
           {
-            exit 1;
+            exit $self->ping_connect();
+          }
+          elsif ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_SELECT ) {
+            exit $self->ping_select();
+          }
+          else {
+            die "Not supported ping_type!\n";
           }
           exit 0;
         };

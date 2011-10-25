@@ -335,6 +335,7 @@ sub wait_until_master_is_unreachable() {
       logger         => $log,
       logfile        => $g_logfile,
       workdir        => $g_workdir,
+      ping_type      => $current_master->{ping_type},
     );
     $log->info(
       sprintf( "Set master ping interval %d seconds.",

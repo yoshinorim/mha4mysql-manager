@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings FATAL=>'all';
+
+my $pid= $ARGV[0];
+my $exit_code= 1;
+eval {
+  local $SIG{ALRM} = sub {
+    die "timeout";
+  };
+  alarm 5;
+  while(1) {
+    my $pid_exists= kill 0, $pid;
+    if ($pid_exists) {
+      sleep 1;
+    } else {
+      last;
+    }
+  }
+  alarm 0;
+  $exit_code= 0;
+};
+alarm 0;
+if ($@) {
+  $exit_code= 1;
+  if ($@ =~ m/timeout/) {
+    $exit_code= 10;
+  }
+}
+exit $exit_code;
+

@@ -89,7 +89,8 @@ tests/t/stop_s2.sh
 tests/t/stop_s4.sh
 tests/t/t_4tier.sh
 tests/t/t_4tier_subm_dead.sh
-tests/t/t_advisory.sh
+tests/t/t_advisory_connect.sh
+tests/t/t_advisory_select.sh
 tests/t/t_apply_many_logs.sh
 tests/t/t_apply_many_logs2.sh
 tests/t/t_apply_many_logs3.sh
@@ -155,3 +156,4 @@ tests/t/t_slave_sql_start2.sh
 tests/t/t_slave_sql_start3.sh
 tests/t/t_slave_stop.sh
 tests/t/tran_insert.pl
+tests/t/waitpid
