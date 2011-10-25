@@ -431,6 +431,7 @@ sub switch_slaves_internal {
 
     my $pplog;
     eval {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
       my $local_file =
 "$g_workdir/masteronlineswitch_$target->{hostname}_$target->{port}_$start_datetime.log";
       unlink $local_file;

@@ -80,6 +80,7 @@ sub do_ssh_connection_check {
     }
     my ( $file, $pplog );
     eval {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
       $pm->finish(0) if ( $src->{skip_init_ssh_check} );
       $file = "$workdir/$src->{hostname}_$src->{port}_ssh_check.log";
       unlink $file;

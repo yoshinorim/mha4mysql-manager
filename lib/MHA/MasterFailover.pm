@@ -433,6 +433,7 @@ sub force_shutdown($) {
   foreach my $target (@alive_slaves) {
     $slave_io_stopper->start($target) and next;
     eval {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
       my $rc = $target->stop_io_thread();
       $slave_io_stopper->finish($rc);
     };
@@ -928,6 +929,7 @@ sub recover_all_slaves_relay_logs {
     my $pid = $pm->start($target) and next;
     my $pplog;
     eval {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
       $pm->finish(2) if ( $target->{lack_relay_log} );
       my $local_file =
         "$g_workdir/$target->{hostname}_$target->{port}_$_start_datetime.log";
@@ -1322,6 +1324,7 @@ sub recover_slaves_internal {
 
     my $pplog;
     eval {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
       my $local_file =
         "$g_workdir/$target->{hostname}_$target->{port}_$_start_datetime.log";
       unlink $local_file;

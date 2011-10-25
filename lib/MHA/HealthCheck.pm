@@ -280,6 +280,7 @@ sub invoke_sec_check {
       $self->{_sec_check_invoked} = 1;
     }
     elsif ( defined $self->{_sec_check_pid} ) {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
 
       #child secondary check process
       exit $self->secondary_check() if ( $self->{secondary_check_script} );
@@ -299,6 +300,7 @@ sub invoke_ssh_check {
       $self->{_ssh_check_invoked} = 1;
     }
     elsif ( defined $self->{_ssh_check_pid} ) {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
 
       #child ssh check process
       exit $self->ssh_check();
@@ -490,6 +492,7 @@ sub wait_until_unreachable($) {
         $self->sleep_until();
       }
       elsif ( defined $pid ) {
+        $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
 
         # Child process
         eval {

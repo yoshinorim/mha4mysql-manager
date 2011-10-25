@@ -234,6 +234,7 @@ sub connect_all_and_read_server_status($$$$) {
     }
     $connection_checker->start($target) and next;
     eval {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
       if ( $dead_master_host
         && $dead_master_ip
         && $dead_master_port )
