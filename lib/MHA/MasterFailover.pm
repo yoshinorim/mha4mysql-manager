@@ -282,13 +282,12 @@ sub check_settings($) {
     my $lastts       = ( stat($_failover_complete_file) )[9];
     my $current_time = time();
     if ( $current_time - $lastts < $g_last_failover_minute * 60 ) {
-      my ( $sec, $min, $hh, $dd, $mm, $yy, $weak, $yday, $opt ) =
+      my ( $sec, $min, $hh, $dd, $mm, $yy, $week, $yday, $opt ) =
         localtime($lastts);
-      $mm = $mm + 1;
-      $yy = $yy + 1900;
+      my $t = sprintf( "%04d/%02d/%02d %02d:%02d:%02d",
+        $yy + 1900, $mm + 1, $dd, $hh, $mm, $sec );
       my $msg =
-          "Last failover was done at "
-        . "$yy/$mm/$dd $hh:$min:$sec."
+          "Last failover was done at $t."
         . " Current time is too early to do failover again. If you want to "
         . "do failover, manually remove $_failover_complete_file "
         . "and run this script again.";
