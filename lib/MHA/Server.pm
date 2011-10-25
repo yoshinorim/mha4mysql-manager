@@ -280,7 +280,10 @@ sub check_set_ssh_status {
   my $set_dead = shift;
   if ( !$self->{dead} ) {
     if (
-      MHA::HealthCheck::ssh_check($self)
+      MHA::HealthCheck::ssh_check(
+        $self->{ssh_user}, $self->{hostname}, $self->{ip},
+        $self->{logger},   5
+      )
       || MHA::ManagerUtil::check_node_version_nodie(
         $log, $self->{ssh_user}, $self->{hostname}, $self->{ip}
       )

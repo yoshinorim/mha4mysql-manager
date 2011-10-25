@@ -449,7 +449,14 @@ sub force_shutdown($) {
 
   # SSH reachability is unknown. Verify here.
   if ( $_real_ssh_reachable >= 2 ) {
-    if ( MHA::HealthCheck::ssh_check($dead_master) ) {
+    if (
+      MHA::HealthCheck::ssh_check(
+        $dead_master->{ssh_user}, $dead_master->{hostname},
+        $dead_master->{ip},       $dead_master->{logger},
+        5
+      )
+      )
+    {
       $_real_ssh_reachable = 0;
     }
     else {

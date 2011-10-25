@@ -196,22 +196,48 @@ sub ping($) {
   return 0;
 }
 
-sub ssh_check($) {
-  my $self          = shift;
-  my $log           = $self->{logger};
-  my $ssh_user_host = $self->{ssh_user} . '@' . $self->{ip};
-  my $command       = "exit 0";
-  my ( $high, $low ) = MHA::ManagerUtil::exec_system(
-    "ssh $MHA::ManagerConst::SSH_OPT_CHECK $ssh_user_host $command",
-    $self->{logfile} );
-  if ( $high == 0 && $low == 0 ) {
-    $log->info("HealthCheck: SSH to $self->{hostname} is reachable.");
-    return 0;
+sub ssh_check {
+  my $ssh_user            = shift;
+  my $hostname            = shift;
+  my $ip                  = shift;
+  my $log                 = shift;
+  my $num_secs_to_timeout = shift;
+  my $ssh_user_host       = $ssh_user . '@' . $ip;
+  my $rc                  = 1;
+  my $command             = "exit 0";
+  eval {
+    if ( my $pid = fork )
+    {
+      local $SIG{ALRM} = sub {
+        kill 9, $pid;
+        die "Got timeout on checking SSH connection to $hostname!";
+      };
+      alarm $num_secs_to_timeout;
+      waitpid( $pid, 0 );
+      alarm 0;
+      my $exit_code = $? >> 8;
+      if ( $exit_code == 0 ) {
+        $log->info("HealthCheck: SSH to $hostname is reachable.");
+        $rc = 0;
+      }
+      else {
+        $log->warning("HealthCheck: SSH to $hostname is NOT reachable.");
+        $rc = 1;
+      }
+    }
+    elsif ( defined $pid ) {
+      exec("ssh $MHA::ManagerConst::SSH_OPT_CHECK $ssh_user_host $command");
+    }
+    else {
+      croak "Forking SSH connection process failed!\n";
+    }
+  };
+  alarm 0;
+  if ($@) {
+    $log->warning("HealthCheck: $@");
+    $rc = 1;
   }
-  else {
-    $log->warning("HealthCheck: SSH to $self->{hostname} is NOT reachable.");
-    return 1;
-  }
+  return $rc;
 }
 
 sub secondary_check($) {
@@ -248,13 +274,16 @@ sub secondary_check($) {
   }
 }
 
-sub terminate_child($$$) {
+sub terminate_child {
   my $self                = shift;
   my $pid                 = shift;
   my $type                = shift;
-  my $log                 = $self->{logger};
-  my $num_secs_to_timeout = $self->{interval};
-  my $child_exit_code     = 0;
+  my $num_secs_to_timeout = shift;
+  unless ($num_secs_to_timeout) {
+    $num_secs_to_timeout = $self->{interval};
+  }
+  my $log             = $self->{logger};
+  my $child_exit_code = 0;
   eval {
     local $SIG{ALRM} = sub {
       kill 9, $pid;
@@ -265,6 +294,7 @@ sub terminate_child($$$) {
     alarm 0;
     $child_exit_code = $? >> 8;
   };
+  alarm 0;
   if ($@) {
     $log->warning($@) if ($log);
     undef $@;
@@ -303,7 +333,10 @@ sub invoke_ssh_check {
       $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
 
       #child ssh check process
-      exit $self->ssh_check();
+      exit ssh_check(
+        $self->{ssh_user}, $self->{hostname}, $self->{ip},
+        $self->{logger},   $self->{interval} * 3
+      );
     }
     else {
       croak "Forking SSH check process failed. Can't continue operation.\n";
@@ -367,23 +400,34 @@ sub is_ssh_reachable {
 }
 
 sub kill_sec_check {
-  my $self = shift;
+  my $self                = shift;
+  my $num_secs_to_timeout = shift;
+  my $exit_code           = 1;
   if ( $self->{_sec_check_invoked} ) {
     if ( defined( $self->{_sec_check_pid} ) ) {
-      $self->terminate_child( $self->{_sec_check_pid}, "Secondary Check" );
+      $exit_code = $self->terminate_child(
+        $self->{_sec_check_pid},
+        "Secondary Check",
+        $num_secs_to_timeout
+      );
     }
     $self->{_sec_check_invoked} = 0;
   }
+  return $exit_code;
 }
 
 sub kill_ssh_check {
-  my $self = shift;
+  my $self                = shift;
+  my $num_secs_to_timeout = shift;
+  my $exit_code           = 1;
   if ( $self->{_ssh_check_invoked} ) {
     if ( defined( $self->{_ssh_check_pid} ) ) {
-      $self->terminate_child( $self->{_ssh_check_pid}, "SSH Check" );
+      $exit_code = $self->terminate_child( $self->{_ssh_check_pid},
+        "SSH Check", $num_secs_to_timeout );
     }
     $self->{_ssh_check_invoked} = 0;
   }
+  return $exit_code;
 }
 
 sub update_status_ok {
