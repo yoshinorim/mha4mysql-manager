@@ -598,7 +598,7 @@ sub reset_slave_on_new_master($) {
   }
   else {
     my $message = " $self->{hostname}: Resetting slave info succeeded.";
-    $log->debug($message);
+    $log->info($message);
     return 0;
   }
 }
