@@ -74,6 +74,7 @@ tests/t/mha_test_multi.cnf.tmpl
 tests/t/mha_test_multi_online.cnf.tmpl
 tests/t/mha_test_online.cnf.tmpl
 tests/t/mha_test_reset.cnf.tmpl
+tests/t/mha_test_select.cnf.tmpl
 tests/t/my-row.cnf
 tests/t/my.cnf
 tests/t/run.sh
