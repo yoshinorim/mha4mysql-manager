@@ -62,6 +62,7 @@ tests/t/env.sh
 tests/t/force_start_m.sh
 tests/t/init.sh
 tests/t/insert.pl
+tests/t/insert_binary.pl
 tests/t/kill_m.sh
 tests/t/mha_test.cnf.tmpl
 tests/t/mha_test_err1.cnf.tmpl
@@ -95,6 +96,7 @@ tests/t/t_advisory_select.sh
 tests/t/t_apply_many_logs.sh
 tests/t/t_apply_many_logs2.sh
 tests/t/t_apply_many_logs3.sh
+tests/t/t_binary.sh
 tests/t/t_conf.sh
 tests/t/t_dual_master_error.sh
 tests/t/t_filter_incorrect.sh
