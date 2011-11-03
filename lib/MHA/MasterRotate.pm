@@ -38,6 +38,7 @@ use Parallel::ForkManager;
 
 my $g_global_config_file = $MHA::ManagerConst::DEFAULT_GLOBAL_CONF;
 my $g_config_file;
+my $g_check_only;
 my $g_new_master_host;
 my $g_new_master_port = 3306;
 my $g_workdir;
@@ -200,7 +201,7 @@ sub identify_new_master {
   $_server_manager->print_servers_migration_ascii( $orig_master, $new_master,
     $g_orig_master_is_new_slave );
 
-  if ($g_interactive) {
+  if ( $g_interactive && !$g_check_only ) {
     $new_master =
       $_server_manager->manually_decide_new_master( $orig_master, $new_master );
   }
@@ -543,6 +544,12 @@ sub do_master_online_switch {
     $log->info("** Phase 1: Configuration Check Phase completed.\n");
     $log->info();
 
+    if ($g_check_only) {
+      $log->info("--check_only is set. Exit.");
+      $error_code = 0;
+      return;
+    }
+
     my ( $orig_master_log_file, $orig_master_log_pos ) =
       reject_update( $orig_master, $new_master );
 
@@ -586,6 +593,7 @@ sub main {
   my $a = GetOptions(
     'global_conf=s'            => \$g_global_config_file,
     'conf=s'                   => \$g_config_file,
+    'check_only'               => \$g_check_only,
     'new_master_host=s'        => \$g_new_master_host,
     'new_master_port=i'        => \$g_new_master_port,
     'workdir=s'                => \$g_workdir,
