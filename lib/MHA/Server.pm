@@ -162,6 +162,12 @@ sub connect_check {
   return 0;
 }
 
+sub connect_util {
+  my $self = shift;
+  return MHA::DBHelper::connect_util( $self->{ip}, $self->{port}, $self->{user},
+    $self->{password} );
+}
+
 # Failed to connect does not result in script die, because it is sometimes expected.
 # Configuration error results in script die, because it should not happen if correctly configured.
 sub connect_and_get_status {
@@ -432,11 +438,18 @@ sub has_replication_problem {
   return 0;
 }
 
-sub get_num_running_update_threads($$) {
+sub get_running_threads($$) {
   my $self     = shift;
   my $mode     = shift;
   my $dbhelper = $self->{dbhelper};
-  $dbhelper->get_num_running_update_threads($mode);
+  $dbhelper->get_running_threads($mode);
+}
+
+sub get_running_update_threads($$) {
+  my $self     = shift;
+  my $mode     = shift;
+  my $dbhelper = $self->{dbhelper};
+  $dbhelper->get_running_update_threads($mode);
 }
 
 sub wait_until_relay_log_applied {

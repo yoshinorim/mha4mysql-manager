@@ -46,6 +46,7 @@ my $g_workdir;
 my $g_flush_tables = 2;
 my $g_orig_master_is_new_slave;
 my $g_running_updates_limit = 1;
+my $g_running_seconds_limit = 10;
 my $g_skip_lock_all_tables;
 my $g_remove_orig_master_conf;
 my $g_interactive = 1;
@@ -155,23 +156,16 @@ sub identify_orig_master() {
   $_server_manager->check_replication_health($g_running_updates_limit);
 
   my @threads =
-    $orig_master->get_num_running_update_threads(
-    $g_running_updates_limit + 1 );
+    $orig_master->get_running_update_threads( $g_running_updates_limit + 1 );
   if ( $#threads >= 0 ) {
     $log->error(
       sprintf(
-"We should not start online master switch when one of connections are running long updates. Currently %d update threads are running.",
-        $#threads + 1 )
+"We should not start online master switch when one of connections are running long updates on the current master(%s). Currently %d update thread(s) are running.",
+        $orig_master->get_hostinfo(),
+        $#threads + 1
+      )
     );
-    if ( $#threads < 10 ) {
-      print "Details: \n";
-      foreach my $thread (@threads) {
-        print " ID: $thread->{Id} ";
-        print " Query: $thread->{Info}" if ( $thread->{Info} );
-        print " Time: $thread->{Time}"  if ( $thread->{Time} );
-        print "\n";
-      }
-    }
+    MHA::DBHelper::print_threads_util( \@threads, 10 );
     croak;
   }
   return $orig_master;
@@ -230,6 +224,20 @@ sub identify_new_master {
   $log->info(" ok.");
 
   check_filter( $orig_master, $new_master );
+
+  my @threads = $new_master->get_running_threads($g_running_seconds_limit);
+  if ( $#threads >= 0 ) {
+    $log->error(
+      sprintf(
+"We should not start online master switch when one of connections are running long queries on the new master(%s). Currently %d thread(s) are running.",
+        $new_master->get_hostinfo(),
+        $#threads + 1
+      )
+    );
+    MHA::DBHelper::print_threads_util( \@threads, 10 );
+    croak;
+  }
+
   return $new_master;
 }
 
@@ -647,6 +655,7 @@ sub main {
     'interactive=i'            => \$g_interactive,
     'orig_master_is_new_slave' => \$g_orig_master_is_new_slave,
     'running_updates_limit=i'  => \$g_running_updates_limit,
+    'running_seconds_limit=i'  => \$g_running_seconds_limit,
     'skip_lock_all_tables'     => \$g_skip_lock_all_tables,
     'remove_dead_master_conf'  => \$g_remove_orig_master_conf,
     'remove_orig_master_conf'  => \$g_remove_orig_master_conf,

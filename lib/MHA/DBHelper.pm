@@ -26,6 +26,7 @@ use English qw(-no_match_vars);
 use MHA::SlaveUtil;
 use MHA::ManagerConst;
 use DBI;
+use Data::Dumper;
 
 use constant Status => "Status";
 use constant Errstr => "Errstr";
@@ -120,14 +121,22 @@ sub get_connection_id($) {
   return $href->{Value};
 }
 
+sub connect_util {
+  my $host     = shift;
+  my $port     = shift;
+  my $user     = shift;
+  my $password = shift;
+  my $dsn      = "DBI:mysql:;host=$host;port=$port;mysql_connect_timeout=1";
+  my $dbh      = DBI->connect( $dsn, $user, $password, { PrintError => 0 } );
+  return $dbh;
+}
+
 sub check_connection_fast_util {
   my $host     = shift;
   my $port     = shift;
   my $user     = shift;
   my $password = shift;
-
-  my $dsn = "DBI:mysql:;host=$host;port=$port;mysql_connect_timeout=1";
-  my $dbh = DBI->connect( $dsn, $user, $password, { PrintError => 0 } );
+  my $dbh      = connect_util( $host, $port, $user, $password );
   if ( defined($dbh) ) {
     return "1:Connection Succeeded";
   }
@@ -586,13 +595,13 @@ sub read_all_relay_log($$) {
   return %status;
 }
 
-sub get_num_running_threads_util {
+sub get_threads_util {
   my $dbh                    = shift;
   my $my_connection_id       = shift;
   my $running_time_threshold = shift;
-  my $update_only            = shift;
+  my $type                   = shift;
   $running_time_threshold = 0 unless ($running_time_threshold);
-  $update_only            = 0 unless ($update_only);
+  $type                   = 0 unless ($type);
   my @threads;
 
   my $sth = $dbh->prepare(Show_Processlist_SQL);
@@ -612,9 +621,12 @@ sub get_num_running_threads_util {
     next if ( defined($command) && $command eq "Binlog Dump" );
     next if ( defined($user) && $user eq "system user" );
 
-    if ($update_only) {
+    if ( $type >= 1 ) {
       next if ( defined($command) && $command eq "Sleep" );
       next if ( defined($command) && $command eq "Connect" );
+    }
+
+    if ( $type >= 2 ) {
       next if ( defined($info) && $info =~ m/^select/i );
       next if ( defined($info) && $info =~ m/^show/i );
     }
@@ -623,19 +635,39 @@ sub get_num_running_threads_util {
   return @threads;
 }
 
-sub get_num_running_threads($$$) {
-  my $self                   = shift;
-  my $running_time_threshold = shift;
-  my $update_only            = shift;
-  return MHA::DBHelper::get_num_running_threads_util( $self->{dbh},
-    $self->{connection_id},
-    $running_time_threshold, $update_only );
+sub print_threads_util {
+  my ( $threads_ref, $max_prints ) = @_;
+  my @threads = @$threads_ref;
+  my $count   = 0;
+  print "Details:\n";
+  foreach my $thread (@threads) {
+    print Data::Dumper->new( [$thread] )->Indent(0)->Terse(1)->Dump . "\n";
+    $count++;
+    if ( $count >= $max_prints ) {
+      printf( "And more.. (%d threads in total)\n", $#threads + 1 );
+      last;
+    }
+  }
 }
 
-sub get_num_running_update_threads($$) {
+sub get_threads($$$) {
   my $self                   = shift;
   my $running_time_threshold = shift;
-  return $self->get_num_running_threads( $running_time_threshold, 1 );
+  my $type                   = shift;
+  return MHA::DBHelper::get_threads_util( $self->{dbh}, $self->{connection_id},
+    $running_time_threshold, $type );
+}
+
+sub get_running_threads($$) {
+  my $self                   = shift;
+  my $running_time_threshold = shift;
+  return $self->get_threads( $running_time_threshold, 1 );
+}
+
+sub get_running_update_threads($$) {
+  my $self                   = shift;
+  my $running_time_threshold = shift;
+  return $self->get_threads( $running_time_threshold, 2 );
 }
 
 sub kill_threads {

@@ -59,13 +59,13 @@ sub sleep_until {
   }
 }
 
-sub get_num_running_threads_util {
+sub get_threads_util {
   my $dbh                    = shift;
   my $my_connection_id       = shift;
   my $running_time_threshold = shift;
-  my $update_only            = shift;
+  my $type                   = shift;
   $running_time_threshold = 0 unless ($running_time_threshold);
-  $update_only            = 0 unless ($update_only);
+  $type                   = 0 unless ($type);
   my @threads;
 
   my $sth = $dbh->prepare("SHOW PROCESSLIST");
@@ -90,11 +90,16 @@ sub get_num_running_threads_util {
       && defined($query_time)
       && $query_time >= 1 );
 
-    if ($update_only) {
+    if ( $type >= 1 ) {
       next if ( defined($command) && $command eq "Sleep" );
+      next if ( defined($command) && $command eq "Connect" );
+    }
+
+    if ( $type >= 2 ) {
       next if ( defined($info) && $info =~ m/^select/i );
       next if ( defined($info) && $info =~ m/^show/i );
     }
+
     push @threads, $ref;
   }
   return @threads;
@@ -139,7 +144,7 @@ sub main {
       ## Waiting for N * 100 milliseconds so that current connections can exit
       my $time_until_read_only = 15;
       $_tstart = [gettimeofday];
-      my @threads = get_num_running_threads_util( $orig_master_handler->{dbh},
+      my @threads = get_threads_util( $orig_master_handler->{dbh},
         $orig_master_handler->{connection_id} );
       while ( $time_until_read_only > 0 && $#threads >= 0 ) {
         if ( $time_until_read_only % 5 == 0 ) {
@@ -154,7 +159,7 @@ sub main {
         sleep_until();
         $_tstart = [gettimeofday];
         $time_until_read_only--;
-        @threads = get_num_running_threads_util( $orig_master_handler->{dbh},
+        @threads = get_threads_util( $orig_master_handler->{dbh},
           $orig_master_handler->{connection_id} );
       }
 
@@ -170,7 +175,7 @@ sub main {
 
       ## Waiting for M * 100 milliseconds so that current update queries can complete
       my $time_until_kill_threads = 5;
-      @threads = get_num_running_threads_util( $orig_master_handler->{dbh},
+      @threads = get_threads_util( $orig_master_handler->{dbh},
         $orig_master_handler->{connection_id} );
       while ( $time_until_kill_threads > 0 && $#threads >= 0 ) {
         if ( $time_until_kill_threads % 5 == 0 ) {
@@ -186,7 +191,7 @@ sub main {
         sleep_until();
         $_tstart = [gettimeofday];
         $time_until_kill_threads--;
-        @threads = get_num_running_threads_util( $orig_master_handler->{dbh},
+        @threads = get_threads_util( $orig_master_handler->{dbh},
           $orig_master_handler->{connection_id} );
       }
 

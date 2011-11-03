@@ -34,14 +34,14 @@ export CONF_IGNORE=mha_test_ignore.cnf
 
 fail_if_zero() {
   if test $2 -eq 0 ; then
-    echo "$1 [Fail]"
+    echo "$1 [Fail] (expected non-zero exit code, but $2 returned)"
     exit 1
   fi
 }
 
 fail_if_nonzero() {
   if test $2 -ne 0 ; then
-    echo "$1 [Fail]"
+    echo "$1 [Fail] (expected zero exit code, but $2 returned)"
     exit 1
   fi
 }
