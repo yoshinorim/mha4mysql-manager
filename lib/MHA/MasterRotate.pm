@@ -137,14 +137,14 @@ sub identify_orig_master() {
   }
 
   $log->info("Checking MHA is not monitoring or doing failover..");
-  if ( $orig_master->get_monitor_advisory_lock() ) {
+  if ( $orig_master->get_monitor_advisory_lock(0) ) {
     $log->error(
 "Getting advisory lock failed on the current master. MHA Monitor runs on the current master. Stop MHA Manager/Monitor and try again."
     );
     croak;
   }
   foreach my $target (@alive_slaves) {
-    if ( $target->get_failover_advisory_lock() ) {
+    if ( $target->get_failover_advisory_lock(0) ) {
       $log->error(
 "Getting advisory lock failed on $target->{hostname}. Maybe failover script or purge_relay_logs script is running on the same slave?"
       );

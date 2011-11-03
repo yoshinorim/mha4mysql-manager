@@ -82,10 +82,12 @@ sub disable_read_only($) {
   }
 }
 
-sub get_failover_advisory_lock($) {
-  my $self = shift;
-  my $dbh  = $self->{dbh};
-  return MHA::SlaveUtil::get_failover_advisory_lock( $dbh, 10 );
+sub get_failover_advisory_lock {
+  my $self    = shift;
+  my $timeout = shift;
+  $timeout = 1 if ( !defined($timeout) );
+  my $dbh = $self->{dbh};
+  return MHA::SlaveUtil::get_failover_advisory_lock( $dbh, $timeout );
 }
 
 sub release_failover_advisory_lock($) {
@@ -94,10 +96,12 @@ sub release_failover_advisory_lock($) {
   return MHA::SlaveUtil::release_failover_advisory_lock($dbh);
 }
 
-sub get_monitor_advisory_lock($) {
-  my $self = shift;
-  my $dbh  = $self->{dbh};
-  return MHA::SlaveUtil::get_monitor_advisory_lock( $dbh, 1 );
+sub get_monitor_advisory_lock {
+  my $self    = shift;
+  my $timeout = shift;
+  $timeout = 1 if ( !defined($timeout) );
+  my $dbh = $self->{dbh};
+  return MHA::SlaveUtil::get_monitor_advisory_lock( $dbh, $timeout );
 }
 
 sub release_monitor_advisory_lock($) {
