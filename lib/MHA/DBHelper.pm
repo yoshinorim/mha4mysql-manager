@@ -646,6 +646,13 @@ sub kill_threads {
   }
 }
 
+sub kill_thread_util {
+  my $dbh = shift;
+  my $id  = shift;
+  my $sth = $dbh->prepare("KILL ?");
+  $sth->execute($id);
+}
+
 sub rename_user($$$) {
   my $self      = shift;
   my $from_user = shift;

@@ -24,6 +24,7 @@ use warnings FATAL => 'all';
 
 use English qw(-no_match_vars);
 use Carp qw(croak);
+use POSIX qw(:signal_h);
 use Getopt::Long;
 use Pod::Usage;
 use Log::Dispatch;
@@ -588,7 +589,43 @@ sub do_master_online_switch {
   return $error_code;
 }
 
+sub handle_sigint {
+  if ( my $pid = fork ) {
+    waitpid( $pid, 0 );
+  }
+  elsif ( defined $pid ) {
+    if ($_server_manager) {
+      my @alive_servers = $_server_manager->get_alive_servers();
+      foreach my $target (@alive_servers) {
+        my $dbh = $target->connect_util();
+        if ( $dbh
+          && $target->{dbhelper}
+          && $target->{dbhelper}->{connection_id} )
+        {
+          $log->info(
+            sprintf(
+              "Killing thread %d on %s..",
+              $target->{dbhelper}->{connection_id},
+              $target->get_hostinfo()
+            )
+          );
+          MHA::DBHelper::kill_thread_util( $dbh,
+            $target->{dbhelper}->{connection_id} );
+          $log->info("ok.");
+        }
+        $dbh->disconnect() if ($dbh);
+      }
+    }
+    exit 0;
+  }
+  exit 1;
+}
+
 sub main {
+  my $sigset = POSIX::SigSet->new(SIGINT);
+  my $sigaction =
+    POSIX::SigAction->new( \&handle_sigint, $sigset, &POSIX::SA_NOCLDSTOP );
+  POSIX::sigaction( SIGINT, $sigaction );
   local @ARGV = @_;
   my $a = GetOptions(
     'global_conf=s'            => \$g_global_config_file,
