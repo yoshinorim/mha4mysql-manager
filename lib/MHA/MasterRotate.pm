@@ -43,6 +43,7 @@ my $g_check_only;
 my $g_new_master_host;
 my $g_new_master_port = 3306;
 my $g_workdir;
+my $g_flush_tables = 2;
 my $g_orig_master_is_new_slave;
 my $g_running_updates_limit = 1;
 my $g_skip_lock_all_tables;
@@ -110,21 +111,29 @@ sub identify_orig_master() {
 
   $_server_manager->check_repl_priv();
 
-  if ($g_interactive) {
+  my $run_flush_tables = 1;
+
+  if ( $g_interactive && $g_flush_tables == 2 ) {
     printf(
 "\nIt is better to execute FLUSH NO_WRITE_TO_BINLOG TABLES on the master before switching. Is it ok to execute on %s? (YES/no): ",
       $orig_master->get_hostinfo() );
     my $ret = <STDIN>;
     chomp($ret);
     if ( lc($ret) !~ /^n/ ) {
-      $orig_master->flush_tables();
+      $run_flush_tables = 1;
     }
     else {
-      $log->info("Skipping executing FLUSH NO_WRITE_TO_BINLOG TABLES.");
+      $run_flush_tables = 0;
     }
   }
   else {
+    $run_flush_tables = $g_flush_tables;
+  }
+  if ($run_flush_tables) {
     $orig_master->flush_tables();
+  }
+  else {
+    $log->info("Skipping executing FLUSH NO_WRITE_TO_BINLOG TABLES.");
   }
 
   $log->info("Checking MHA is not monitoring or doing failover..");
@@ -641,6 +650,7 @@ sub main {
     'skip_lock_all_tables'     => \$g_skip_lock_all_tables,
     'remove_dead_master_conf'  => \$g_remove_orig_master_conf,
     'remove_orig_master_conf'  => \$g_remove_orig_master_conf,
+    'flush_tables=i'           => \$g_flush_tables,
   );
   if ( $#ARGV >= 0 ) {
     print "Unknown options: ";
