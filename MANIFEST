@@ -135,6 +135,8 @@ tests/t/t_needsync_flush.sh
 tests/t/t_needsync_flush2.sh
 tests/t/t_needsync_flush3.sh
 tests/t/t_needsync_flush_slave.sh
+tests/t/t_new_master_heavy.sh
+tests/t/t_new_master_heavy_wait.sh
 tests/t/t_no_relay_log.sh
 tests/t/t_normal_crash.sh
 tests/t/t_online_3tier.sh

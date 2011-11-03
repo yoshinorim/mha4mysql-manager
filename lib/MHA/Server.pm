@@ -69,19 +69,6 @@ sub check_slave_status($) {
   return $dbhelper->check_slave_status();
 }
 
-sub disable_read_only($) {
-  my $self     = shift;
-  my $dbhelper = $self->{dbhelper};
-  $dbhelper->disable_read_only();
-  $self->{read_only} = $dbhelper->is_read_only();
-  if ( $self->{read_only} ) {
-    return 1;
-  }
-  else {
-    return 0;
-  }
-}
-
 sub get_failover_advisory_lock {
   my $self    = shift;
   my $timeout = shift;
@@ -112,21 +99,64 @@ sub release_monitor_advisory_lock($) {
 
 sub enable_read_only($) {
   my $self     = shift;
+  my $log      = $self->{logger};
   my $dbhelper = $self->{dbhelper};
-  $dbhelper->enable_read_only();
-  $self->{read_only} = $dbhelper->is_read_only();
-  if ( $self->{read_only} ) {
+
+  if ( $dbhelper->is_read_only() eq "1" ) {
+    $self->{read_only} = 1;
     return 0;
   }
   else {
-    return 1;
+    $log->info(
+      sprintf( "Setting read_only=1 on %s..", $self->get_hostinfo() ) );
+    if ( $dbhelper->enable_read_only() eq "0" ) {
+      $self->{read_only} = 1;
+    }
+    else {
+      $self->{read_only} = $dbhelper->is_read_only();
+    }
+
+    if ( $self->{read_only} eq "1" ) {
+      $log->info(" ok.");
+      return 0;
+    }
+    else {
+      $log->warning(" failed!");
+      return 1;
+    }
   }
+  return 1;
 }
 
-sub get_running_update_threads {
-  my ( $self, $arg ) = @_;
+sub disable_read_only($) {
+  my $self     = shift;
+  my $log      = $self->{logger};
   my $dbhelper = $self->{dbhelper};
-  return $dbhelper->get_running_update_threads($arg);
+
+  if ( $dbhelper->is_read_only() eq "0" ) {
+    $self->{read_only} = 0;
+    return 0;
+  }
+  else {
+    $log->info(
+      sprintf( "Setting read_only=0 on %s..", $self->get_hostinfo() ) );
+    if ( $dbhelper->disable_read_only() eq "0" ) {
+      $self->{read_only} = 0;
+    }
+    else {
+      $self->{read_only} = $dbhelper->is_read_only();
+    }
+
+    if ( $self->{read_only} eq "0" ) {
+      $log->info(" ok.");
+      return 0;
+    }
+    else {
+      $log->warning(" failed!");
+      return 1;
+    }
+  }
+  return 1;
 }
 
 sub connect_check {

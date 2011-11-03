@@ -4,12 +4,15 @@ use strict;
 use warnings FATAL=>'all';
 
 my $pid= $ARGV[0];
+my $timeout= $ARGV[1];
+$timeout= 5 unless($timeout);
+
 my $exit_code= 1;
 eval {
   local $SIG{ALRM} = sub {
     die "timeout";
   };
-  alarm 5;
+  alarm $timeout;
   while(1) {
     my $pid_exists= kill 0, $pid;
     if ($pid_exists) {

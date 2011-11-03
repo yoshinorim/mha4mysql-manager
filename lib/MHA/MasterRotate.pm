@@ -377,6 +377,10 @@ sub switch_master($$$$) {
       }
     }
   }
+
+  # Allow write access on master (if read_only==1)
+  $new_master->disable_read_only();
+
   return ( $master_log_file, $master_log_pos );
 }
 

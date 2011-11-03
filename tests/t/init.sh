@@ -18,4 +18,8 @@ if [ "A$INIT_SCRIPT" != "A" ]; then
   eval $INIT_SCRIPT
 fi
 
+rm -f /var/tmp/*127.0.0.1_*.binlog
+rm -f /var/tmp/*127.0.0.1_*.log
+rm -f /var/tmp/mha_test*
+
 mysql $M test -e "create table t1 (id int primary key, value int, value2 text) engine=innodb; insert into t1 values(1, 100, 'abc');"

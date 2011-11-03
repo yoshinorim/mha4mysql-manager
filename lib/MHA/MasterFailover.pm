@@ -1195,9 +1195,6 @@ sub recover_master($$$) {
   }
   $mail_body .= "$new_master->{hostname}: OK: Applying all logs succeeded.\n";
 
-  # Allow write access on master
-  $new_master->disable_read_only();
-
   if ( $new_master->{master_ip_failover_script} ) {
     my $command =
 "$new_master->{master_ip_failover_script} --command=start --ssh_user=$new_master->{ssh_user} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip} --orig_master_port=$dead_master->{port} --new_master_host=$new_master->{hostname} --new_master_ip=$new_master->{ip} --new_master_port=$new_master->{port}";
@@ -1227,6 +1224,9 @@ sub recover_master($$$) {
 "master_ip_failover_script is not set. Skipping taking over new master ip address."
     );
   }
+
+  # Allow write access on master (if read_only==1)
+  $new_master->disable_read_only();
 
   $log->info("** Finished master recovery successfully.");
   $mail_subject .= " to $new_master->{hostname}";

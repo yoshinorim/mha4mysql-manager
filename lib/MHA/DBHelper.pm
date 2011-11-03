@@ -419,14 +419,24 @@ sub enable_log_bin_local($) {
   return $self->execute(Set_Log_Bin_Local_SQL);
 }
 
-sub disable_read_only($) {
-  my $self = shift;
-  return $self->execute(Unset_Readonly_SQL);
-}
-
 sub enable_read_only($) {
   my $self = shift;
-  return $self->execute(Set_Readonly_SQL);
+  if ( $self->is_read_only() eq "1" ) {
+    return 0;
+  }
+  else {
+    return $self->execute(Set_Readonly_SQL);
+  }
+}
+
+sub disable_read_only($) {
+  my $self = shift;
+  if ( $self->is_read_only() eq "0" ) {
+    return 0;
+  }
+  else {
+    return $self->execute(Unset_Readonly_SQL);
+  }
 }
 
 sub reset_slave($) {

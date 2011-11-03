@@ -459,7 +459,7 @@ sub validate_num_alive_servers($$$) {
 }
 
 # Check the following
-# 1. All slaves are read_only (WARN)
+# 1. All slaves are read_only (INFO)
 # 2. All slaves see the same master ip/port (ERROR)
 # 3. All slaves set relay_log_purge=0 (WARN)
 # 4. All slaves have same replication filter rules with a master (ERROR)
@@ -476,7 +476,7 @@ sub validate_slaves($$$) {
 
   foreach (@slaves) {
     if ( $_->{read_only} ne '1' ) {
-      $log->warning(
+      $log->info(
         sprintf( " read_only=1 is not set on slave %s.\n", $_->get_hostinfo() )
       );
     }
