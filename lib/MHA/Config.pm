@@ -214,7 +214,7 @@ sub parse_server {
   $value{ping_type} = $param_arg->{ping_type};
   if ( !defined( $value{ping_type} ) ) {
     $value{ping_type} = $default->{ping_type};
-    $value{ping_type} = $MHA::ManagerConst::PING_TYPE_CONNECT
+    $value{ping_type} = $MHA::ManagerConst::PING_TYPE_SELECT
       if ( !defined( $value{ping_type} ) );
   }
   $value{ping_type} = uc( $value{ping_type} );
