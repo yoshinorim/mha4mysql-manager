@@ -57,7 +57,7 @@ sub do_ssh_connection_check {
       my ( $pid, $exit_code, $target ) = @_;
       return if ( $target->{skip_init_ssh_check} );
       my $local_file =
-        "$workdir/$target->{hostname}_$target->{port}_ssh_check.log";
+        "$workdir/$target->{ssh_host}_$target->{ssh_port}_ssh_check.log";
       if ($exit_code) {
         $failed = 1;
         $log->error( "\n" . `cat $local_file` );
@@ -82,7 +82,7 @@ sub do_ssh_connection_check {
     eval {
       $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
       $pm->finish(0) if ( $src->{skip_init_ssh_check} );
-      $file = "$workdir/$src->{hostname}_$src->{port}_ssh_check.log";
+      $file = "$workdir/$src->{ssh_host}_$src->{ssh_port}_ssh_check.log";
       unlink $file;
       $pplog = Log::Dispatch->new( callbacks => $MHA::ManagerConst::log_fmt );
       $pplog->add(
@@ -98,14 +98,14 @@ sub do_ssh_connection_check {
         next if ( $dst->{skip_init_ssh_check} );
         next if ( $src->{id} eq $dst->{id} );
         $pplog->debug(
-" Connecting via SSH from $src->{ssh_user}\@$src->{hostname}($src->{ip}) to $dst->{ssh_user}\@$dst->{hostname}($dst->{ip}).."
+" Connecting via SSH from $src->{ssh_user}\@$src->{ssh_host}($src->{ssh_ip}:$src->{ssh_port}) to $dst->{ssh_user}\@$dst->{ssh_host}($dst->{ssh_ip}:$dst->{ssh_port}).."
         );
         my $command =
-"ssh $MHA::ManagerConst::SSH_OPT_CHECK $src->{ssh_user}\@$src->{ip} \"ssh $MHA::ManagerConst::SSH_OPT_CHECK $dst->{ssh_user}\@$dst->{ip} exit 0\"";
+"ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $src->{ssh_port} $src->{ssh_user}\@$src->{ssh_ip} \"ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $dst->{ssh_port} $dst->{ssh_user}\@$dst->{ssh_ip} exit 0\"";
         my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $file );
         if ( $high != 0 || $low != 0 ) {
           $pplog->error(
-"SSH connection from $src->{ssh_user}\@$src->{hostname}($src->{ip}) to $dst->{ssh_user}\@$dst->{hostname}($dst->{ip}) failed!"
+"SSH connection from $src->{ssh_user}\@$src->{ssh_host}($src->{ssh_ip}:$src->{ssh_port}) to $dst->{ssh_user}\@$dst->{ssh_host}($dst->{ssh_ip}:$dst->{ssh_port}) failed!"
           );
           $pm->finish(1);
         }

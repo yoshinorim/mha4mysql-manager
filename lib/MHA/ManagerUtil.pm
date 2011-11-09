@@ -69,22 +69,26 @@ sub exec_system {
   }
 }
 
-sub exec_ssh_check_cmd($$$) {
+sub exec_ssh_check_cmd($$$$) {
   my $ssh_host   = shift;
+  my $ssh_port   = shift;
   my $ssh_cmd    = shift;
   my $log_output = shift;
   my $ret;
   return exec_system(
-    "ssh $MHA::ManagerConst::SSH_OPT_CHECK $ssh_host $ssh_cmd", $log_output );
+    "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_host $ssh_cmd",
+    $log_output );
 }
 
-sub exec_ssh_cmd($$$) {
+sub exec_ssh_cmd($$$$) {
   my $ssh_host   = shift;
+  my $ssh_port   = shift;
   my $ssh_cmd    = shift;
   my $log_output = shift;
   my $ret;
   return exec_system(
-    "ssh $MHA::ManagerConst::SSH_OPT_ALIVE $ssh_host $ssh_cmd", $log_output );
+    "ssh $MHA::ManagerConst::SSH_OPT_ALIVE -p $ssh_port $ssh_host $ssh_cmd",
+    $log_output );
 }
 
 sub check_node_version {
@@ -92,10 +96,12 @@ sub check_node_version {
   my $ssh_user = shift;
   my $ssh_host = shift;
   my $ssh_ip   = shift;
+  my $ssh_port = shift;
   my $ssh_user_host;
   my $node_version;
   eval {
     my $command = "apply_diff_relay_logs --version";
+
     if ( $ssh_host || $ssh_ip ) {
       if ($ssh_ip) {
         $ssh_user_host = $ssh_user . '@' . $ssh_ip;
@@ -104,7 +110,7 @@ sub check_node_version {
         $ssh_user_host = $ssh_user . '@' . $ssh_host;
       }
       $command =
-"ssh $MHA::ManagerConst::SSH_OPT_ALIVE $ssh_user_host \"$command\" 2>&1";
+"ssh $MHA::ManagerConst::SSH_OPT_ALIVE $ssh_user_host -p $ssh_port \"$command\" 2>&1";
 
     }
     my $v = `$command`;
@@ -140,9 +146,10 @@ sub check_node_version_nodie {
   my $ssh_user = shift;
   my $ssh_host = shift;
   my $ssh_ip   = shift;
+  my $ssh_port = shift;
   my $rc       = 1;
   eval {
-    check_node_version( $log, $ssh_user, $ssh_host, $ssh_ip );
+    check_node_version( $log, $ssh_user, $ssh_host, $ssh_ip, $ssh_port );
     $rc = 0;
   };
   if ($@) {

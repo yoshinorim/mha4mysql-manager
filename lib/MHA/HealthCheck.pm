@@ -43,6 +43,9 @@ sub new {
     hostname               => undef,
     port                   => undef,
     ssh_user               => undef,
+    ssh_host               => undef,
+    ssh_ip                 => undef,
+    ssh_port               => undef,
     workdir                => undef,
     status_handler         => undef,
     secondary_check_script => undef,
@@ -265,11 +268,12 @@ sub ping_select($) {
 
 sub ssh_check {
   my $ssh_user            = shift;
-  my $hostname            = shift;
-  my $ip                  = shift;
+  my $ssh_host            = shift;
+  my $ssh_ip              = shift;
+  my $ssh_port            = shift;
   my $log                 = shift;
   my $num_secs_to_timeout = shift;
-  my $ssh_user_host       = $ssh_user . '@' . $ip;
+  my $ssh_user_host       = $ssh_user . '@' . $ssh_ip;
   my $rc                  = 1;
   my $command             = "exit 0";
   eval {
@@ -277,23 +281,25 @@ sub ssh_check {
     {
       local $SIG{ALRM} = sub {
         kill 9, $pid;
-        die "Got timeout on checking SSH connection to $hostname!";
+        die "Got timeout on checking SSH connection to $ssh_host!";
       };
       alarm $num_secs_to_timeout;
       waitpid( $pid, 0 );
       alarm 0;
       my $exit_code = $? >> 8;
       if ( $exit_code == 0 ) {
-        $log->info("HealthCheck: SSH to $hostname is reachable.");
+        $log->info("HealthCheck: SSH to $ssh_host is reachable.");
         $rc = 0;
       }
       else {
-        $log->warning("HealthCheck: SSH to $hostname is NOT reachable.");
+        $log->warning("HealthCheck: SSH to $ssh_host is NOT reachable.");
         $rc = 1;
       }
     }
     elsif ( defined $pid ) {
-      exec("ssh $MHA::ManagerConst::SSH_OPT_CHECK $ssh_user_host $command");
+      exec(
+"ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host $command"
+      );
     }
     else {
       croak "Forking SSH connection process failed!\n";
@@ -401,8 +407,8 @@ sub invoke_ssh_check {
 
       #child ssh check process
       exit ssh_check(
-        $self->{ssh_user}, $self->{hostname}, $self->{ip},
-        $self->{logger},   $self->{interval} * 3
+        $self->{ssh_user}, $self->{ssh_host}, $self->{ssh_ip},
+        $self->{ssh_port}, $self->{logger},   $self->{interval} * 3
       );
     }
     else {

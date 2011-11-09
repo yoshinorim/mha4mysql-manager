@@ -26,7 +26,10 @@ use Pod::Usage;
 use MHA::ManagerConst;
 
 my @monitoring_servers;
-my ( $help, $version, $ssh_user, $master_host, $master_ip, $master_port );
+my (
+  $help,        $version,   $ssh_user, $ssh_port,
+  $master_host, $master_ip, $master_port
+);
 
 $| = 1;
 GetOptions(
@@ -34,6 +37,7 @@ GetOptions(
   'version'          => \$version,
   'secondary_host=s' => \@monitoring_servers,
   'user=s'           => \$ssh_user,
+  'port=s'           => \$ssh_port,
   'master_host=s'    => \$master_host,
   'master_ip=s'      => \$master_ip,
   'master_port=i'    => \$master_port,
@@ -53,6 +57,7 @@ unless ($master_host) {
 }
 
 $ssh_user    = "root" unless ($ssh_user);
+$ssh_port    = 22     unless ($ssh_port);
 $master_port = 3306   unless ($master_port);
 
 sub exit_by_signal {
@@ -69,7 +74,7 @@ my $exit_code = 0;
 foreach my $monitoring_server (@monitoring_servers) {
   my $ssh_user_host = $ssh_user . '@' . $monitoring_server;
   my $command =
-      "ssh $MHA::ManagerConst::SSH_OPT_CHECK $ssh_user_host \"perl -e "
+"ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \"perl -e "
     . "\\\"use IO::Socket::INET; my \\\\\\\$sock = IO::Socket::INET->new"
     . "(PeerAddr => \\\\\\\"$master_host\\\\\\\", PeerPort=> $master_port, "
     . "Proto =>'tcp', Timeout => 4); if(\\\\\\\$sock) { close(\\\\\\\$sock); "

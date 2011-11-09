@@ -70,10 +70,10 @@ sub check_master_env($) {
   $log->info(
 "Checking SSH publickey authentication and checking recovery script configurations on the current master.."
   );
-  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{hostname};
+  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_host};
 
   MHA::ManagerUtil::check_node_version( $log, $target->{ssh_user},
-    $target->{hostname}, $target->{ip} );
+    $target->{ssh_host}, $target->{ssh_ip}, $target->{ssh_port} );
 
   # this file is not created. just checking directory path
   my $workfile = "$target->{remote_workdir}/save_binary_logs_test";
@@ -87,9 +87,10 @@ sub check_master_env($) {
     $command .= " --debug ";
   }
   $log->info("  Executing command: $command ");
-  $log->info("  Connecting to $ssh_user_host($target->{hostname}).. ");
+  $log->info("  Connecting to $ssh_user_host($target->{ssh_host}).. ");
   my ( $high, $low ) =
-    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $command, $g_logfile );
+    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $target->{ssh_port},
+    $command, $g_logfile );
   if ( $high ne '0' || $low ne '0' ) {
     $log->error("Master setting check failed!");
     return 1;
@@ -104,7 +105,7 @@ sub check_slave_env() {
 "Checking SSH publickey authentication and checking recovery script configurations on all alive slave servers.."
   );
   foreach my $s (@alive_servers) {
-    my $ssh_user_host = $s->{ssh_user} . '@' . $s->{ip};
+    my $ssh_user_host = $s->{ssh_user} . '@' . $s->{ssh_ip};
     my $command =
 "apply_diff_relay_logs --command=test --slave_user=$s->{user} --slave_host=$s->{hostname} --slave_ip=$s->{ip} --slave_port=$s->{port} --workdir=$s->{remote_workdir} --target_version=$s->{mysql_version} --manager_version=$MHA::ManagerConst::VERSION";
     if ( $s->{relay_log_info_type} eq "TABLE" ) {
@@ -123,9 +124,11 @@ sub check_slave_env() {
     if ( $s->{password} ne "" ) {
       $command .= " --slave_pass=$s->{password}";
     }
-    $log->info("  Connecting to $ssh_user_host($s->{hostname}).. ");
+    $log->info(
+      "  Connecting to $ssh_user_host($s->{ssh_host}:$s->{ssh_port}).. ");
     my ( $high, $low ) =
-      MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $command, $g_logfile );
+      MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $s->{ssh_port}, $command,
+      $g_logfile );
     if ( $high ne '0' || $low ne '0' ) {
       $log->error("Slaves settings check failed!");
       return 1;
@@ -140,7 +143,8 @@ sub check_scripts($) {
   if ( $current_master->{master_ip_failover_script} ) {
     my $command =
 "$current_master->{master_ip_failover_script} --command=status --ssh_user=$current_master->{ssh_user} --orig_master_host=$current_master->{hostname} --orig_master_ip=$current_master->{ip} --orig_master_port=$current_master->{port}";
-    $log->info("Checking master_ip_failvoer_script status:");
+    $command .= $current_master->get_ssh_args_if("orig");
+    $log->info("Checking master_ip_failover_script status:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
     if ( $high == 0 && $low == 0 ) {
@@ -160,6 +164,7 @@ sub check_scripts($) {
   if ( $current_master->{shutdown_script} ) {
     my $command =
 "$current_master->{shutdown_script} --command=status --host=$current_master->{hostname} --ip=$current_master->{ip}";
+    $command .= $current_master->get_ssh_args_if("shutdown");
     $log->info("Checking shutdown script status:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
@@ -276,8 +281,10 @@ sub wait_until_master_is_unreachable() {
       unless ($g_skip_ssh_check);
     $log->info("Checking MHA Node version..");
     foreach my $slave (@alive_slaves) {
-      MHA::ManagerUtil::check_node_version( $log, $slave->{ssh_user},
-        $slave->{hostname}, $slave->{ip} );
+      MHA::ManagerUtil::check_node_version(
+        $log,             $slave->{ssh_user}, $slave->{ssh_host},
+        $slave->{ssh_ip}, $slave->{ssh_port}
+      );
     }
     $log->info(" Version check ok.");
     unless ($current_master) {
@@ -331,6 +338,9 @@ sub wait_until_master_is_unreachable() {
       port           => $current_master->{port},
       interval       => $current_master->{ping_interval},
       ssh_user       => $current_master->{ssh_user},
+      ssh_host       => $current_master->{ssh_host},
+      ssh_ip         => $current_master->{ssh_ip},
+      ssh_port       => $current_master->{ssh_port},
       status_handler => $_status_handler,
       logger         => $log,
       logfile        => $g_logfile,

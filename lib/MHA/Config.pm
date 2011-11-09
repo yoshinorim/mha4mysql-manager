@@ -31,7 +31,7 @@ use MHA::NodeUtil;
 use MHA::ManagerConst;
 
 my @PARAM_ARRAY =
-  qw/ hostname ip port node_label candidate_master no_master ignore_fail skip_init_ssh_check skip_reset_slave user password repl_user repl_password disable_log_bin master_pid_file handle_raw_binlog ssh_user remote_workdir master_binlog_dir log_level manager_workdir manager_log check_repl_delay check_repl_filter latest_priority multi_tier_slave ping_interval ping_type secondary_check_script master_ip_failover_script master_ip_online_change_script shutdown_script report_script init_conf_load_script /;
+  qw/ hostname ip port ssh_host ssh_ip ssh_port node_label candidate_master no_master ignore_fail skip_init_ssh_check skip_reset_slave user password repl_user repl_password disable_log_bin master_pid_file handle_raw_binlog ssh_user remote_workdir master_binlog_dir log_level manager_workdir manager_log check_repl_delay check_repl_filter latest_priority multi_tier_slave ping_interval ping_type secondary_check_script master_ip_failover_script master_ip_online_change_script shutdown_script report_script init_conf_load_script /;
 my %PARAM;
 for (@PARAM_ARRAY) { $PARAM{$_} = 1; }
 
@@ -68,6 +68,27 @@ sub parse_server {
     $value{port} = $default->{port};
     $value{port} = 3306 unless ( $value{port} );
   }
+
+  $value{ssh_host} = $param_arg->{ssh_host};
+  if ( !defined( $value{ssh_host} ) ) {
+    $value{ssh_host} = $value{hostname};
+  }
+  if ( $value{hostname}
+    && $value{ssh_host}
+    && $value{ssh_host} eq $value{hostname} )
+  {
+    $value{ssh_ip} = $value{ip};
+  }
+  else {
+    $value{ssh_ip} = MHA::NodeUtil::get_ip( $value{ssh_host} );
+  }
+
+  $value{ssh_port} = $param_arg->{ssh_port};
+  if ( !defined( $value{ssh_port} ) ) {
+    $value{ssh_port} = $default->{ssh_port};
+    $value{ssh_port} = 22 unless ( $value{ssh_port} );
+  }
+
   $value{user} = $param_arg->{user};
   if ( !defined( $value{user} ) ) {
     $value{user} = $default->{user};

@@ -83,9 +83,10 @@ sub exit_by_signal {
 }
 
 sub exec_ssh_child_cmd {
-  my ( $ssh_user_host, $ssh_cmd, $logger, $file ) = @_;
+  my ( $ssh_user_host, $ssh_port, $ssh_cmd, $logger, $file ) = @_;
   my ( $high, $low ) =
-    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $ssh_cmd, $file );
+    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $ssh_port, $ssh_cmd,
+    $file );
   if ( $logger && $file ) {
     $logger->info( "\n" . `cat $file` );
     unlink $file;
@@ -320,6 +321,7 @@ sub force_shutdown_internal($) {
     else {
       $command .= " --command=stop";
     }
+    $command .= $dead_master->get_ssh_args_if("orig");
     $log->info("Executing master IP deactivatation script:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
@@ -361,6 +363,7 @@ sub force_shutdown_internal($) {
 " --host=$dead_master->{hostname}  --ip=$dead_master->{ip}  --port=$dead_master->{port} ";
     $command .= " --pid_file=$dead_master->{master_pid_file}"
       if ( $dead_master->{master_pid_file} );
+    $command .= $dead_master->get_ssh_args_if("shutdown");
     $log->info("Executing SHUTDOWN script:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
@@ -512,7 +515,7 @@ sub save_master_binlog_internal {
   if ( $dead_master->{log_level} eq "debug" ) {
     $command .= " --debug ";
   }
-  my $ssh_user_host = $dead_master->{ssh_user} . '@' . $dead_master->{ip};
+  my $ssh_user_host = $dead_master->{ssh_user} . '@' . $dead_master->{ssh_ip};
   $log->info(
     sprintf(
       "Executing command on the dead master %s: %s",
@@ -520,13 +523,15 @@ sub save_master_binlog_internal {
     )
   );
   my ( $high, $low ) =
-    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $command, $g_logfile );
+    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $dead_master->{ssh_port},
+    $command, $g_logfile );
   if ( $high == 0 && $low == 0 ) {
     if (
       MHA::NodeUtil::file_copy(
         0,                        $_diff_binary_log,
         $_diff_binary_log_remote, $dead_master->{ssh_user},
-        $dead_master->{ip},       $g_logfile
+        $dead_master->{ssh_ip},   $g_logfile,
+        $dead_master->{ssh_port}
       )
       )
     {
@@ -567,8 +572,9 @@ sub save_master_binlog {
     MHA::ManagerUtil::check_node_version(
       $log,
       $dead_master->{ssh_user},
-      $dead_master->{hostname},
-      $dead_master->{ip}
+      $dead_master->{ssh_host},
+      $dead_master->{ssh_ip},
+      $dead_master->{ssh_port}
     );
     my $latest_file =
       ( $_server_manager->get_latest_slaves() )[0]->{Master_Log_File};
@@ -602,7 +608,8 @@ sub find_slave_with_all_relay_logs {
       next if ( $latest_slave->{ssh_ok} == 0 );
     }
 
-    my $ssh_user_host = $latest_slave->{ssh_user} . '@' . $latest_slave->{ip};
+    my $ssh_user_host =
+      $latest_slave->{ssh_user} . '@' . $latest_slave->{ssh_ip};
     my $command =
 "apply_diff_relay_logs --command=find --latest_mlf=$latest_slave->{Master_Log_File} --latest_rmlp=$latest_slave->{Read_Master_Log_Pos} --target_mlf=$oldest_master_log_file --target_rmlp=$oldest_master_log_pos --server_id=$latest_slave->{server_id} --workdir=$latest_slave->{remote_workdir} --timestamp=$_start_datetime --manager_version=$MHA::ManagerConst::VERSION";
     if ( $latest_slave->{relay_log_info_type} eq "TABLE" ) {
@@ -621,7 +628,8 @@ sub find_slave_with_all_relay_logs {
     );
     $log->info("Executing command: $command :");
     my ( $high, $low ) =
-      MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $command, $g_logfile );
+      MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $latest_slave->{ssh_port},
+      $command, $g_logfile );
     if ( $high eq '0' && $low eq '0' ) {
       $log->info("OK. $latest_slave->{hostname} has all relay logs.");
       return $latest_slave;
@@ -774,7 +782,8 @@ sub send_binlog {
       MHA::NodeUtil::file_copy(
         1,                        $_diff_binary_log,
         $_diff_binary_log_remote, $target->{ssh_user},
-        $target->{ip},            $g_logfile
+        $target->{ssh_ip},        $g_logfile,
+        $target->{ssh_port}
       )
       )
     {
@@ -805,9 +814,10 @@ sub generate_diff_from_readpos {
 "Need to get diffs from the latest slave($latest_slave->{hostname}) up to: $latest_slave->{Master_Log_File}:$latest_slave->{Read_Master_Log_Pos} (using the latest slave's relay logs)"
   );
 
-  my $ssh_user_host = $latest_slave->{ssh_user} . '@' . $latest_slave->{ip};
+  my $ssh_user_host = $latest_slave->{ssh_user} . '@' . $latest_slave->{ssh_ip};
   my ( $high, $low ) =
-    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, "exit 0", $g_logfile );
+    MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $latest_slave->{ssh_port},
+    "exit 0", $g_logfile );
   if ( $high ne '0' || $low ne '0' ) {
     $logger->error("SSH authentication test failed. user=$ssh_user_host");
     return ( $high, $low );
@@ -817,7 +827,11 @@ sub generate_diff_from_readpos {
 "Connecting to the latest slave host $latest_slave->{hostname}, generating diff relay log files.."
   );
   my $command =
-"apply_diff_relay_logs --command=generate_and_send --scp_user=$target->{ssh_user} --scp_host=$target->{ip} --latest_mlf=$latest_slave->{Master_Log_File} --latest_rmlp=$latest_slave->{Read_Master_Log_Pos} --target_mlf=$target->{Master_Log_File} --target_rmlp=$target->{Read_Master_Log_Pos} --server_id=$latest_slave->{server_id} --diff_file_readtolatest=$target->{diff_file_readtolatest} --workdir=$latest_slave->{remote_workdir} --timestamp=$_start_datetime --handle_raw_binlog=$target->{handle_raw_binlog} --disable_log_bin=$target->{disable_log_bin} --manager_version=$MHA::ManagerConst::VERSION";
+"apply_diff_relay_logs --command=generate_and_send --scp_user=$target->{ssh_user} --scp_host=$target->{ssh_ip} --latest_mlf=$latest_slave->{Master_Log_File} --latest_rmlp=$latest_slave->{Read_Master_Log_Pos} --target_mlf=$target->{Master_Log_File} --target_rmlp=$target->{Read_Master_Log_Pos} --server_id=$latest_slave->{server_id} --diff_file_readtolatest=$target->{diff_file_readtolatest} --workdir=$latest_slave->{remote_workdir} --timestamp=$_start_datetime --handle_raw_binlog=$target->{handle_raw_binlog} --disable_log_bin=$target->{disable_log_bin} --manager_version=$MHA::ManagerConst::VERSION";
+  if ( $target->{ssh_port} ne 22 ) {
+    $command .= " --scp_port=$target->{ssh_port}";
+  }
+
   if ( $latest_slave->{relay_log_info_type} eq "TABLE" ) {
     $command .=
 " --relay_dir=$latest_slave->{relay_dir} --current_relay_log=$latest_slave->{current_relay_log} ";
@@ -833,8 +847,8 @@ sub generate_diff_from_readpos {
     $command .= " --debug ";
   }
   $logger->info("Executing command: $command");
-  return exec_ssh_child_cmd( $ssh_user_host, $command, $logger,
-    "$g_workdir/$target->{hostname}_$target->{port}.work" );
+  return exec_ssh_child_cmd( $ssh_user_host, $target->{ssh_port}, $command,
+    $logger, "$g_workdir/$target->{hostname}_$target->{port}.work" );
 }
 
 # 0: no need to generate diff
@@ -1028,8 +1042,9 @@ sub gen_diff_from_exec_to_read {
       $logger->error("Failed to connect via SSH!");
       return 1;
     }
-    my ( $high, $low ) = exec_ssh_child_cmd( $ssh_user_host, $command, $logger,
-      "$g_workdir/$target->{hostname}_$target->{port}.work" );
+    my ( $high, $low ) =
+      exec_ssh_child_cmd( $ssh_user_host, $target->{ssh_port}, $command,
+      $logger, "$g_workdir/$target->{hostname}_$target->{port}.work" );
     if ( $high eq '0' && $low eq '0' ) {
       return 0;
     }
@@ -1108,7 +1123,8 @@ sub apply_diff {
     $logger->error("Failed to connect via SSH!");
     return ( 1, 0 );
   }
-  my ( $high, $low ) = exec_ssh_child_cmd( $ssh_user_host, $command, $logger,
+  my ( $high, $low ) =
+    exec_ssh_child_cmd( $ssh_user_host, $target->{ssh_port}, $command, $logger,
     "$g_workdir/$target->{hostname}_$target->{port}.work" );
 
   $target->set_default_max_allowed_packet($logger);
@@ -1198,6 +1214,8 @@ sub recover_master($$$) {
   if ( $new_master->{master_ip_failover_script} ) {
     my $command =
 "$new_master->{master_ip_failover_script} --command=start --ssh_user=$new_master->{ssh_user} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip} --orig_master_port=$dead_master->{port} --new_master_host=$new_master->{hostname} --new_master_ip=$new_master->{ip} --new_master_port=$new_master->{port}";
+    $command .= $dead_master->get_ssh_args_if("orig");
+    $command .= $new_master->get_ssh_args_if("new");
     $log->info("Executing master IP activate script:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );

@@ -321,11 +321,12 @@ sub check_set_ssh_status {
   if ( !$self->{dead} ) {
     if (
       MHA::HealthCheck::ssh_check(
-        $self->{ssh_user}, $self->{hostname}, $self->{ip},
-        $self->{logger},   5
+        $self->{ssh_user}, $self->{ssh_host}, $self->{ssh_ip},
+        $self->{ssh_port}, $self->{logger},   5
       )
       || MHA::ManagerUtil::check_node_version_nodie(
-        $log, $self->{ssh_user}, $self->{hostname}, $self->{ip}
+        $log,            $self->{ssh_user}, $self->{ssh_host},
+        $self->{ssh_ip}, $self->{ssh_port}
       )
       )
     {
@@ -1004,6 +1005,36 @@ sub print_filter {
   }
   $str .= "\n";
   return $str;
+}
+
+sub get_ssh_args_if {
+  my $self = shift;
+  my $type = shift;
+
+  my $arg  = " ";
+  my $head = "";
+
+  if ( $type eq "orig" ) {
+    $head = " --orig_master_";
+  }
+  elsif ( $type eq "new" ) {
+    $head = " --new_master_";
+  }
+  elsif ( $type eq "shutdown" ) {
+    $head = " --";
+  }
+
+  if ( $self->{hostname} ne $self->{ssh_host}
+    || $self->{ip} ne $self->{ssh_ip} )
+  {
+    $arg .=
+      $head . "ssh_host=$self->{ssh_host}" . $head . "ssh_ip=$self->{ssh_ip}";
+  }
+
+  if ( $self->{ssh_port} ne 22 ) {
+    $arg .= $head . "ssh_port=$self->{ssh_port}";
+  }
+  return $arg;
 }
 
 1;
