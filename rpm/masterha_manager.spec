@@ -1,7 +1,7 @@
 Summary: Master High Availability Manager and Tools for MySQL, Manager Package
 Name: mha4mysql-manager
 Version: 0.52
-Release: 0
+Release: 0%{?dist}
 License: GPL v2
 Vendor: DeNA Co.,Ltd.
 Group: Manager
@@ -22,7 +22,7 @@ Source0: mha4mysql-manager-%{version}.tar.gz
 %setup -q -n mha4mysql-manager-%{version}
 
 %build
-CFLAGS="$RPM_OPT_FLAGS" %{__perl} Makefile.PL INSTALLDIRS="vendor" INSTALLVENDORLIB=/usr/lib/perl5/vendor_perl
+CFLAGS="$RPM_OPT_FLAGS" %{__perl} Makefile.PL INSTALLDIRS="vendor" INSTALLVENDORLIB=%{?perl_install_vendor_lib}
 make %{?_smp_mflags} OPTIMIZE="$RPM_OPT_FLAGS"
 
 %install
