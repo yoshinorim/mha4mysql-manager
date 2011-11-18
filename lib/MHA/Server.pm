@@ -314,6 +314,39 @@ sub connect_and_get_status {
   return $self;
 }
 
+sub read_repl_filter {
+  my $self     = shift;
+  my $log      = $self->{logger};
+  my $dbhelper = $self->{dbhelper};
+  my %status   = $dbhelper->check_slave_status(1);
+
+  # show slave status returned empty result. To check replication filtering
+  # rules, temporarily executing CHANGE MASTER to dummy host, and
+  # checking slave status, then resetting slave.
+  if ( $status{Status} == 1 ) {
+    $log->info(
+      sprintf(
+"%s: SHOW SLAVE STATUS returned empty result. To check replication filtering rules, temporarily executing CHANGE MASTER to a dummy host.",
+        $self->get_hostinfo() )
+    );
+    $dbhelper->execute("CHANGE MASTER TO MASTER_HOST='dummy_host'");
+    %status = $dbhelper->check_slave_status(1);
+    $log->info(
+      sprintf( "%s: Resetting slave pointing to the dummy host.",
+        $self->get_hostinfo() )
+    );
+    $self->reset_slave_all();
+  }
+  if ( $status{Status} == 0 ) {
+    $self->{Replicate_Do_DB}             = $status{Replicate_Do_DB};
+    $self->{Replicate_Ignore_DB}         = $status{Replicate_Ignore_DB};
+    $self->{Replicate_Do_Table}          = $status{Replicate_Do_Table};
+    $self->{Replicate_Ignore_Table}      = $status{Replicate_Ignore_Table};
+    $self->{Replicate_Wild_Do_Table}     = $status{Replicate_Wild_Do_Table};
+    $self->{Replicate_Wild_Ignore_Table} = $status{Replicate_Wild_Ignore_Table};
+  }
+}
+
 sub check_set_ssh_status {
   my $self     = shift;
   my $log      = shift;
@@ -609,6 +642,15 @@ sub unlock_tables($) {
     $log->info(" ok.");
   }
   return 0;
+}
+
+sub reset_slave_all {
+  my $self     = shift;
+  my $dbhelper = $self->{dbhelper};
+  $dbhelper->reset_slave_master_host();
+  if ( !$self->version_ge("5.5.0") ) {
+    $dbhelper->reset_slave_by_change_master();
+  }
 }
 
 # Let the server to return nothing at SHOW SLAVE STATUS (Without this, the new master still points to the previous master)

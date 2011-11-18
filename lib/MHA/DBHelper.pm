@@ -67,6 +67,7 @@ use constant Change_Master_NoPass_SQL =>
 "CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
 use constant Reset_Slave_Master_Host_SQL => "RESET SLAVE /*!50516 ALL */";
 use constant Reset_Slave_SQL             => "RESET SLAVE";
+use constant Change_Master_Clear_SQL     => "CHANGE MASTER TO MASTER_HOST=''";
 use constant Show_Slave_Status_SQL       => "SHOW SLAVE STATUS";
 
 # i_s.processlist was not supported in older versions
@@ -384,6 +385,11 @@ sub reset_slave_master_host($) {
   return $self->execute(Reset_Slave_Master_Host_SQL);
 }
 
+sub reset_slave_by_change_master($) {
+  my $self = shift;
+  return $self->execute(Change_Master_Clear_SQL);
+}
+
 sub change_master($$$$$$$) {
   my $self            = shift;
   my $master_host     = shift;
@@ -484,7 +490,8 @@ sub uniq_and_sort {
 }
 
 sub check_slave_status {
-  my $self = shift;
+  my $self        = shift;
+  my $allow_dummy = shift;
   my ( $query, $sth, $href );
   my %status = ();
 
@@ -530,10 +537,12 @@ sub check_slave_status {
   }
 
   if ( !$status{Master_Host} || !$status{Master_Log_File} ) {
+    unless ($allow_dummy) {
 
-    # I am not a slave
-    $status{Status} = 1;
-    return %status;
+      # I am not a slave
+      $status{Status} = 1;
+      return %status;
+    }
   }
 
   for my $filter_key ( Replicate_Do_DB, Replicate_Ignore_DB, Replicate_Do_Table,

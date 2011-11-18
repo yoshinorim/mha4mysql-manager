@@ -46,6 +46,20 @@ fail_if_nonzero() {
   fi
 }
 
+fail_if_empty() {
+  if test ! -s $2 ; then
+    echo "$1 [Fail] ($2 is empty)"
+    exit 1
+  fi
+}
+
+fail_if_nonempty() {
+  if test -s $2 ; then
+    echo "$1 [Fail] ($2 is not empty)"
+    exit 1
+  fi
+}
+
 check_sql_yes() {
 SQL_STATUS=`mysql -h127.0.0.1 --port=$2 -e "show slave status\G" | grep Slave_SQL_Running: | awk '{print $2}'`
   if [ "$SQL_STATUS" = "Yes" ]; then
