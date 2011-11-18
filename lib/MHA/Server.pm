@@ -663,7 +663,7 @@ sub reset_slave_info($) {
     $log->error(" Stopping slave failed!");
     return 1;
   }
-  $dbhelper->reset_slave_master_host();
+  $self->reset_slave_all();
   my %status = $dbhelper->check_slave_status();
   if ( $status{Status} == 1 ) {
     $log->debug(
