@@ -190,6 +190,34 @@ sub check_filter {
     $log->warning($msg);
     croak;
   }
+  if ($g_orig_master_is_new_slave) {
+    $orig_master->{Replicate_Do_Table}          ||= "";
+    $orig_master->{Replicate_Ignore_Table}      ||= "";
+    $orig_master->{Replicate_Wild_Do_Table}     ||= "";
+    $orig_master->{Replicate_Wild_Ignore_Table} ||= "";
+    $new_master->{Replicate_Do_Table}           ||= "";
+    $new_master->{Replicate_Ignore_Table}       ||= "";
+    $new_master->{Replicate_Wild_Do_Table}      ||= "";
+    $new_master->{Replicate_Wild_Ignore_Table}  ||= "";
+
+    if ( $orig_master->{Replicate_Do_Table} ne $new_master->{Replicate_Do_Table}
+      || $orig_master->{Replicate_Ignore_Table} ne
+      $new_master->{Replicate_Ignore_Table}
+      || $orig_master->{Replicate_Wild_Do_Table} ne
+      $new_master->{Replicate_Wild_Do_Table}
+      || $orig_master->{Replicate_Wild_Ignore_Table} ne
+      $new_master->{Replicate_Wild_Ignore_Table} )
+    {
+      $log->error(
+"Replication filtering check failed on the orig/new master! Orig master and New master must have same replication filtering rules is --orig_master_is_new_slave is set. Check SHOW SLAVE STATUS output and set my.cnf correctly."
+      );
+      my $msg = "Bad Binlog/Replication filtering rules:\n";
+      $msg .= $orig_master->print_filter( 1, 1 );
+      $msg .= $new_master->print_filter( 0, 1 );
+      $log->warning($msg);
+      croak;
+    }
+  }
 }
 
 sub identify_new_master {
