@@ -25,6 +25,7 @@ use warnings FATAL => 'all';
 use English qw(-no_match_vars);
 use MHA::SlaveUtil;
 use MHA::ManagerConst;
+use Carp qw(croak);
 use DBI;
 use Data::Dumper;
 
@@ -218,7 +219,12 @@ sub has_repl_priv {
   my $self = shift;
   my $user = shift;
   my $sth  = $self->{dbh}->prepare(Repl_User_SQL);
-  $sth->execute($user);
+  my $ret  = $sth->execute($user);
+  if ( !defined($ret) ) {
+    croak
+"Got MySQL error when checking replication privilege. $DBI::err: $DBI::errstr query:"
+      . Repl_User_SQL . "\n";
+  }
   my $href  = $sth->fetchrow_hashref;
   my $value = $href->{Value};
   return 1 if ( defined($value) && $value eq "Y" );
