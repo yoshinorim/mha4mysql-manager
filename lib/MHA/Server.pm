@@ -449,7 +449,6 @@ sub current_slave_position {
   $self->{Read_Master_Log_Pos}   = $status{Read_Master_Log_Pos};
   $self->{Relay_Master_Log_File} = $status{Relay_Master_Log_File};
   $self->{Exec_Master_Log_Pos}   = $status{Exec_Master_Log_Pos};
-  $self->{Master_Log_File}       = $status{Master_Log_File};
   $self->{Relay_Log_File}        = $status{Relay_Log_File};
   $self->{Relay_Log_Pos}         = $status{Relay_Log_Pos};
   return $self;
