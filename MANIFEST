@@ -143,6 +143,7 @@ tests/t/t_online_3tier.sh
 tests/t/t_online_3tier_slave.sh
 tests/t/t_online_3tier_slave_keep.sh
 tests/t/t_online_busy.sh
+tests/t/t_online_filter.sh
 tests/t/t_online_mm.sh
 tests/t/t_online_mm_3tier.sh
 tests/t/t_online_mm_3tier_slave.sh
