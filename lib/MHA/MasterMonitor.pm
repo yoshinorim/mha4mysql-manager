@@ -34,6 +34,7 @@ use MHA::FileStatus;
 use MHA::SSHCheck;
 use MHA::ManagerConst;
 use MHA::ManagerUtil;
+use MHA::BinlogManager;
 use File::Basename;
 
 my $g_global_config_file = $MHA::ManagerConst::DEFAULT_GLOBAL_CONF;
@@ -47,6 +48,7 @@ my $g_interactive = 1;
 my $g_logfile;
 my $g_wait_on_monitor_error = 0;
 my $g_skip_ssh_check;
+my $_master_node_version;
 my $_server_manager;
 my $RETRY = 100;
 my $_status_handler;
@@ -65,20 +67,33 @@ sub exit_by_signal {
   exit 1;
 }
 
-sub check_master_env($) {
-  my $target = shift;
-  $log->info(
-"Checking SSH publickey authentication and checking recovery script configurations on the current master.."
-  );
-  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_host};
-
-  MHA::ManagerUtil::check_node_version( $log, $target->{ssh_user},
-    $target->{ssh_host}, $target->{ssh_ip}, $target->{ssh_port} );
+sub get_binlog_check_command {
+  my $target     = shift;
+  my $use_prefix = shift;
 
   # this file is not created. just checking directory path
   my $workfile = "$target->{remote_workdir}/save_binary_logs_test";
   my $command =
-"save_binary_logs --command=test --start_file=$target->{File} --start_pos=4 --binlog_dir=$target->{master_binlog_dir} --output_file=$workfile --manager_version=$MHA::ManagerConst::VERSION";
+"save_binary_logs --command=test --start_pos=4 --binlog_dir=$target->{master_binlog_dir} --output_file=$workfile --manager_version=$MHA::ManagerConst::VERSION";
+  my $file;
+  if ( $target->{File} ) {
+    $file = $target->{File};
+  }
+  else {
+    my @alive_slaves = $_server_manager->get_alive_slaves();
+    my $slave        = $alive_slaves[0];
+    $slave->current_slave_position();
+    $file = $slave->{Master_Log_File};
+  }
+  if ($use_prefix) {
+    my ( $binlog_prefix, $number ) =
+      MHA::BinlogManager::get_head_and_number($file);
+    $command .= " --binlog_prefix=$binlog_prefix";
+  }
+  else {
+    $command .= " --start_file=$file";
+  }
+
   unless ( $target->{handle_raw_binlog} ) {
     my $oldest_version = $_server_manager->get_oldest_version();
     $command .= " --oldest_version=$oldest_version ";
@@ -86,6 +101,48 @@ sub check_master_env($) {
   if ( $target->{log_level} eq "debug" ) {
     $command .= " --debug ";
   }
+  return $command;
+}
+
+sub check_master_ssh_env($) {
+  my $target = shift;
+  $log->info(
+    "Checking SSH publickey authentication settings on the current master..");
+  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_host};
+
+  my $ssh_reachable;
+  if (
+    MHA::HealthCheck::ssh_check_simple(
+      $target->{ssh_user}, $target->{ssh_host}, $target->{ssh_ip},
+      $target->{ssh_port}, $target->{logger},   5
+    )
+    )
+  {
+    $ssh_reachable = 0;
+  }
+  else {
+    $ssh_reachable = 1;
+  }
+  if ($ssh_reachable) {
+    $_master_node_version =
+      MHA::ManagerUtil::get_node_version( $log, $target->{ssh_user},
+      $target->{ssh_host}, $target->{ssh_ip}, $target->{ssh_port} );
+    if ( !$_master_node_version ) {
+      $log->error(
+"Failed to get MHA node version on the current master even though current master is reachable via SSH!"
+      );
+      croak;
+    }
+    $log->info("Master MHA Node version is $_master_node_version.");
+  }
+  return $ssh_reachable;
+}
+
+sub check_master_binlog($) {
+  my $target = shift;
+  $log->info("Checking recovery script configurations on the current master..");
+  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_host};
+  my $command       = get_binlog_check_command($target);
   $log->info("  Executing command: $command ");
   $log->info("  Connecting to $ssh_user_host($target->{ssh_host}).. ");
   my ( $high, $low ) =
@@ -301,13 +358,13 @@ sub wait_until_master_is_unreachable() {
         sprintf( "Identified master is %s.", $current_master->get_hostinfo() )
       );
     }
-    else {
-      if ( check_master_env($current_master) ) {
+    $_server_manager->validate_num_alive_servers( $current_master, 0 );
+    if ( check_master_ssh_env($current_master) ) {
+      if ( check_master_binlog($current_master) ) {
         $log->error("Master configuration failed.");
         croak;
       }
     }
-    $_server_manager->validate_num_alive_servers( $current_master, 0 );
     $_status_handler->set_master_host( $current_master->{hostname} )
       unless ($g_check_only);
 
@@ -333,22 +390,32 @@ sub wait_until_master_is_unreachable() {
   $func_rc = 1;
   my $master_ping;
   eval {
+    my $ssh_check_command;
+    if ( $_master_node_version && $_master_node_version >= 0.53 ) {
+      $ssh_check_command = get_binlog_check_command( $current_master, 1 );
+    }
+    else {
+      $ssh_check_command = "exit 0";
+    }
+    $log->debug("SSH check command: $ssh_check_command");
+
     $master_ping = new MHA::HealthCheck(
-      user           => $current_master->{user},
-      password       => $current_master->{password},
-      ip             => $current_master->{ip},
-      hostname       => $current_master->{hostname},
-      port           => $current_master->{port},
-      interval       => $current_master->{ping_interval},
-      ssh_user       => $current_master->{ssh_user},
-      ssh_host       => $current_master->{ssh_host},
-      ssh_ip         => $current_master->{ssh_ip},
-      ssh_port       => $current_master->{ssh_port},
-      status_handler => $_status_handler,
-      logger         => $log,
-      logfile        => $g_logfile,
-      workdir        => $g_workdir,
-      ping_type      => $current_master->{ping_type},
+      user              => $current_master->{user},
+      password          => $current_master->{password},
+      ip                => $current_master->{ip},
+      hostname          => $current_master->{hostname},
+      port              => $current_master->{port},
+      interval          => $current_master->{ping_interval},
+      ssh_user          => $current_master->{ssh_user},
+      ssh_host          => $current_master->{ssh_host},
+      ssh_ip            => $current_master->{ssh_ip},
+      ssh_port          => $current_master->{ssh_port},
+      ssh_check_command => $ssh_check_command,
+      status_handler    => $_status_handler,
+      logger            => $log,
+      logfile           => $g_logfile,
+      workdir           => $g_workdir,
+      ping_type         => $current_master->{ping_type},
     );
     $log->info(
       sprintf( "Set master ping interval %d seconds.",

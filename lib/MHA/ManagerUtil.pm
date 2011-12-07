@@ -93,7 +93,7 @@ sub exec_ssh_cmd($$$$) {
   );
 }
 
-sub check_node_version {
+sub get_node_version {
   my $log      = shift;
   my $ssh_user = shift;
   my $ssh_host = shift;
@@ -101,29 +101,40 @@ sub check_node_version {
   my $ssh_port = shift;
   my $ssh_user_host;
   my $node_version;
-  eval {
-    my $command = "apply_diff_relay_logs --version";
+  my $command = "apply_diff_relay_logs --version";
 
-    if ( $ssh_host || $ssh_ip ) {
-      if ($ssh_ip) {
-        $ssh_user_host = $ssh_user . '@' . $ssh_ip;
-      }
-      elsif ($ssh_host) {
-        $ssh_user_host = $ssh_user . '@' . $ssh_host;
-      }
-      $command =
+  if ( $ssh_host || $ssh_ip ) {
+    if ($ssh_ip) {
+      $ssh_user_host = $ssh_user . '@' . $ssh_ip;
+    }
+    elsif ($ssh_host) {
+      $ssh_user_host = $ssh_user . '@' . $ssh_host;
+    }
+    $command =
 "ssh $MHA::ManagerConst::SSH_OPT_ALIVE $ssh_user_host -p $ssh_port \"$command\" 2>&1";
+  }
+  my $v = `$command`;
+  chomp($v);
+  if ( $v =~ /version (\d+\.\d+)/ ) {
+    $node_version = $1;
+  }
+  else {
+    $log->error("Got error when getting node version. Error:");
+    $log->error("\n$v") if ($v);
+  }
+  return $node_version;
+}
 
-    }
-    my $v = `$command`;
-    chomp($v);
-    if ( $v =~ /version (\d+\.\d+)/ ) {
-      $node_version = $1;
-    }
-    else {
-      $log->error("Got error when getting node version. Error:");
-      $log->error("\n$v") if ($v);
-    }
+sub check_node_version {
+  my $log      = shift;
+  my $ssh_user = shift;
+  my $ssh_host = shift;
+  my $ssh_ip   = shift;
+  my $ssh_port = shift;
+  my $node_version;
+  eval {
+    $node_version =
+      get_node_version( $log, $ssh_user, $ssh_host, $ssh_ip, $ssh_port );
     my $host = $ssh_host ? $ssh_host : $ssh_ip;
     croak
 "node version on $host not found! Maybe MHA Node package is not installed?\n"

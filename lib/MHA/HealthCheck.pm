@@ -31,6 +31,7 @@ use MHA::DBHelper;
 use MHA::ManagerConst;
 use MHA::FileStatus;
 use MHA::SlaveUtil;
+use MHA::NodeUtil;
 
 sub new {
   my $class = shift;
@@ -46,6 +47,7 @@ sub new {
     ssh_host               => undef,
     ssh_ip                 => undef,
     ssh_port               => undef,
+    ssh_check_command      => undef,
     workdir                => undef,
     status_handler         => undef,
     secondary_check_script => undef,
@@ -266,6 +268,17 @@ sub ping_select($) {
   return 0;
 }
 
+sub ssh_check_simple {
+  my $ssh_user            = shift;
+  my $ssh_host            = shift;
+  my $ssh_ip              = shift;
+  my $ssh_port            = shift;
+  my $log                 = shift;
+  my $num_secs_to_timeout = shift;
+  return ssh_check( $ssh_user, $ssh_host, $ssh_ip, $ssh_port, $log,
+    $num_secs_to_timeout, "exit 0" );
+}
+
 sub ssh_check {
   my $ssh_user            = shift;
   my $ssh_host            = shift;
@@ -273,9 +286,9 @@ sub ssh_check {
   my $ssh_port            = shift;
   my $log                 = shift;
   my $num_secs_to_timeout = shift;
+  my $command             = shift;
   my $ssh_user_host       = $ssh_user . '@' . $ssh_ip;
   my $rc                  = 1;
-  my $command             = "exit 0";
   eval {
     if ( my $pid = fork )
     {
@@ -286,19 +299,19 @@ sub ssh_check {
       alarm $num_secs_to_timeout;
       waitpid( $pid, 0 );
       alarm 0;
-      my $exit_code = $? >> 8;
-      if ( $exit_code == 0 ) {
-        $log->info("HealthCheck: SSH to $ssh_host is reachable.");
-        $rc = 0;
-      }
-      else {
+      my ( $high, $low ) = MHA::NodeUtil::system_rc($?);
+      if ( $high ne '0' || $low ne '0' ) {
         $log->warning("HealthCheck: SSH to $ssh_host is NOT reachable.");
         $rc = 1;
+      }
+      else {
+        $log->info("HealthCheck: SSH to $ssh_host is reachable.");
+        $rc = 0;
       }
     }
     elsif ( defined $pid ) {
       exec(
-"ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host $command"
+"ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \"$command\""
       );
     }
     else {
@@ -401,17 +414,21 @@ sub invoke_sec_check {
 
 sub invoke_ssh_check {
   my $self = shift;
+  my $log  = $self->{logger};
   if ( !$self->{_ssh_check_invoked} ) {
     if ( $self->{_ssh_check_pid} = fork ) {
       $self->{_ssh_check_invoked} = 1;
     }
     elsif ( defined $self->{_ssh_check_pid} ) {
       $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
+      $log->info("Executing SSH check script: $self->{ssh_check_command}");
 
       #child ssh check process
       exit ssh_check(
-        $self->{ssh_user}, $self->{ssh_host}, $self->{ssh_ip},
-        $self->{ssh_port}, $self->{logger},   $self->{interval} * 3
+        $self->{ssh_user}, $self->{ssh_host},
+        $self->{ssh_ip},   $self->{ssh_port},
+        $self->{logger},   $self->{interval} * 3,
+        $self->{ssh_check_command}
       );
     }
     else {

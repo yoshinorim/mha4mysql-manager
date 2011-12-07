@@ -455,17 +455,34 @@ sub force_shutdown($) {
   # SSH reachability is unknown. Verify here.
   if ( $_real_ssh_reachable >= 2 ) {
     if (
-      MHA::HealthCheck::ssh_check(
-        $dead_master->{ssh_user}, $dead_master->{hostname},
-        $dead_master->{ip},       $dead_master->{logger},
-        5
+      MHA::HealthCheck::ssh_check_simple(
+        $dead_master->{ssh_user}, $dead_master->{ssh_host},
+        $dead_master->{ssh_ip},   $dead_master->{ssh_port},
+        $dead_master->{logger},   5
       )
       )
     {
       $_real_ssh_reachable = 0;
     }
     else {
-      $_real_ssh_reachable = 1;
+
+      # additional check
+      if (
+        MHA::ManagerUtil::get_node_version(
+          $dead_master->{logger},   $dead_master->{ssh_user},
+          $dead_master->{ssh_host}, $dead_master->{ssh_ip},
+          $dead_master->{ssh_port}
+        )
+        )
+      {
+        $_real_ssh_reachable = 1;
+      }
+      else {
+        $log->warning(
+"Failed to get MHA Node version from dead master. Guessing that SSH is NOT reachable."
+        );
+        $_real_ssh_reachable = 0;
+      }
     }
   }
   force_shutdown_internal($dead_master);

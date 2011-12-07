@@ -353,7 +353,7 @@ sub check_set_ssh_status {
   my $set_dead = shift;
   if ( !$self->{dead} ) {
     if (
-      MHA::HealthCheck::ssh_check(
+      MHA::HealthCheck::ssh_check_simple(
         $self->{ssh_user}, $self->{ssh_host}, $self->{ssh_ip},
         $self->{ssh_port}, $self->{logger},   5
       )

@@ -98,6 +98,7 @@ tests/t/t_apply_many_logs2.sh
 tests/t/t_apply_many_logs3.sh
 tests/t/t_binary.sh
 tests/t/t_conf.sh
+tests/t/t_data_io_error.sh
 tests/t/t_dual_master_error.sh
 tests/t/t_filter_incorrect.sh
 tests/t/t_ignore_nostart.sh
