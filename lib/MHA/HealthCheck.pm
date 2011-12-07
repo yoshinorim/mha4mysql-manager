@@ -322,6 +322,9 @@ sub secondary_check($) {
     . " --master_host=$self->{hostname} "
     . " --master_ip=$self->{ip} "
     . " --master_port=$self->{port}";
+  if ($MHA::ManagerConst::USE_SSH_OPTIONS) {
+    $command .= " --options='$MHA::ManagerConst::SSH_OPT_CHECK' ";
+  }
   $log->info("Executing seconary network check script: $command");
   my ( $high, $low ) =
     MHA::ManagerUtil::exec_system( $command, $self->{logfile} );

@@ -119,6 +119,9 @@ sub check_slave_env() {
     if ( $s->{log_level} eq "debug" ) {
       $command .= " --debug ";
     }
+    if ($MHA::ManagerConst::USE_SSH_OPTIONS) {
+      $command .= " --ssh_options='$MHA::NodeConst::SSH_OPT_ALIVE' ";
+    }
     $log->info("  Executing command : $command --slave_pass=xxx");
 
     if ( $s->{password} ne "" ) {
@@ -143,7 +146,7 @@ sub check_scripts($) {
   if ( $current_master->{master_ip_failover_script} ) {
     my $command =
 "$current_master->{master_ip_failover_script} --command=status --ssh_user=$current_master->{ssh_user} --orig_master_host=$current_master->{hostname} --orig_master_ip=$current_master->{ip} --orig_master_port=$current_master->{port}";
-    $command .= $current_master->get_ssh_args_if("orig");
+    $command .= $current_master->get_ssh_args_if( 1, "orig", 1 );
     $log->info("Checking master_ip_failover_script status:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
@@ -163,8 +166,8 @@ sub check_scripts($) {
 
   if ( $current_master->{shutdown_script} ) {
     my $command =
-"$current_master->{shutdown_script} --command=status --host=$current_master->{hostname} --ip=$current_master->{ip}";
-    $command .= $current_master->get_ssh_args_if("shutdown");
+"$current_master->{shutdown_script} --command=status --ssh_user=$current_master->{ssh_user} --host=$current_master->{hostname} --ip=$current_master->{ip}";
+    $command .= $current_master->get_ssh_args_if( 1, "shutdown", 1 );
     $log->info("Checking shutdown script status:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );

@@ -1049,8 +1049,10 @@ sub print_filter {
 }
 
 sub get_ssh_args_if {
-  my $self = shift;
-  my $type = shift;
+  my $self          = shift;
+  my $arg_number    = shift;
+  my $type          = shift;
+  my $ssh_reachable = shift;
 
   my $arg  = " ";
   my $head = "";
@@ -1074,6 +1076,15 @@ sub get_ssh_args_if {
 
   if ( $self->{ssh_port} ne 22 ) {
     $arg .= $head . "ssh_port=$self->{ssh_port}";
+  }
+
+  if ( $MHA::ManagerConst::USE_SSH_OPTIONS && $arg_number <= 1 ) {
+    if ($ssh_reachable) {
+      $arg .= " --ssh_options='$MHA::NodeConst::SSH_OPT_ALIVE' ";
+    }
+    else {
+      $arg .= " --ssh_options='$MHA::ManagerConst::SSH_OPT_CHECK' ";
+    }
   }
   return $arg;
 }

@@ -321,7 +321,8 @@ sub force_shutdown_internal($) {
     else {
       $command .= " --command=stop";
     }
-    $command .= $dead_master->get_ssh_args_if("orig");
+    $command .=
+      $dead_master->get_ssh_args_if( 1, "orig", $_real_ssh_reachable );
     $log->info("Executing master IP deactivatation script:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
@@ -363,7 +364,8 @@ sub force_shutdown_internal($) {
 " --host=$dead_master->{hostname}  --ip=$dead_master->{ip}  --port=$dead_master->{port} ";
     $command .= " --pid_file=$dead_master->{master_pid_file}"
       if ( $dead_master->{master_pid_file} );
-    $command .= $dead_master->get_ssh_args_if("shutdown");
+    $command .=
+      $dead_master->get_ssh_args_if( 1, "shutdown", $_real_ssh_reachable );
     $log->info("Executing SHUTDOWN script:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
@@ -626,6 +628,9 @@ sub find_slave_with_all_relay_logs {
     $log->info(
 "Checking whether $latest_slave->{hostname} has relay logs from the oldest position.."
     );
+    if ($MHA::ManagerConst::USE_SSH_OPTIONS) {
+      $command .= " --ssh_options='$MHA::NodeConst::SSH_OPT_ALIVE' ";
+    }
     $log->info("Executing command: $command :");
     my ( $high, $low ) =
       MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $latest_slave->{ssh_port},
@@ -845,6 +850,9 @@ sub generate_diff_from_readpos {
   }
   if ( $target->{log_level} eq "debug" ) {
     $command .= " --debug ";
+  }
+  if ($MHA::ManagerConst::USE_SSH_OPTIONS) {
+    $command .= " --ssh_options='$MHA::NodeConst::SSH_OPT_ALIVE' ";
   }
   $logger->info("Executing command: $command");
   return exec_ssh_child_cmd( $ssh_user_host, $target->{ssh_port}, $command,
@@ -1114,6 +1122,9 @@ sub apply_diff {
   if ( $target->{log_level} eq "debug" ) {
     $command .= " --debug ";
   }
+  if ($MHA::ManagerConst::USE_SSH_OPTIONS) {
+    $command .= " --ssh_options='$MHA::NodeConst::SSH_OPT_ALIVE' ";
+  }
   $logger->info("Executing command: $command --slave_pass=xxx");
   if ( $target->{password} ne "" ) {
     $command .= " --slave_pass=$target->{password} ";
@@ -1214,8 +1225,9 @@ sub recover_master($$$) {
   if ( $new_master->{master_ip_failover_script} ) {
     my $command =
 "$new_master->{master_ip_failover_script} --command=start --ssh_user=$new_master->{ssh_user} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip} --orig_master_port=$dead_master->{port} --new_master_host=$new_master->{hostname} --new_master_ip=$new_master->{ip} --new_master_port=$new_master->{port}";
-    $command .= $dead_master->get_ssh_args_if("orig");
-    $command .= $new_master->get_ssh_args_if("new");
+    $command .=
+      $dead_master->get_ssh_args_if( 1, "orig", $_real_ssh_reachable );
+    $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
     $log->info("Executing master IP activate script:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );

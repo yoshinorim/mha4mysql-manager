@@ -76,8 +76,9 @@ sub exec_ssh_check_cmd($$$$) {
   my $log_output = shift;
   my $ret;
   return exec_system(
-    "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_host $ssh_cmd",
-    $log_output );
+    "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_host \"$ssh_cmd\"",
+    $log_output
+  );
 }
 
 sub exec_ssh_cmd($$$$) {
@@ -87,8 +88,9 @@ sub exec_ssh_cmd($$$$) {
   my $log_output = shift;
   my $ret;
   return exec_system(
-    "ssh $MHA::ManagerConst::SSH_OPT_ALIVE -p $ssh_port $ssh_host $ssh_cmd",
-    $log_output );
+    "ssh $MHA::ManagerConst::SSH_OPT_ALIVE -p $ssh_port $ssh_host \"$ssh_cmd\"",
+    $log_output
+  );
 }
 
 sub check_node_version {

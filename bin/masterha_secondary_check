@@ -26,10 +26,8 @@ use Pod::Usage;
 use MHA::ManagerConst;
 
 my @monitoring_servers;
-my (
-  $help,        $version,   $ssh_user, $ssh_port,
-  $master_host, $master_ip, $master_port
-);
+my ( $help, $version, $ssh_user, $ssh_port, $ssh_options, $master_host,
+  $master_ip, $master_port );
 
 $| = 1;
 GetOptions(
@@ -38,6 +36,7 @@ GetOptions(
   'secondary_host=s' => \@monitoring_servers,
   'user=s'           => \$ssh_user,
   'port=s'           => \$ssh_port,
+  'options=s'        => \$ssh_options,
   'master_host=s'    => \$master_host,
   'master_ip=s'      => \$master_ip,
   'master_port=i'    => \$master_port,
@@ -59,6 +58,9 @@ unless ($master_host) {
 $ssh_user    = "root" unless ($ssh_user);
 $ssh_port    = 22     unless ($ssh_port);
 $master_port = 3306   unless ($master_port);
+if ($ssh_options) {
+  $MHA::ManagerConst::SSH_OPT_CHECK = $ssh_options;
+}
 
 sub exit_by_signal {
   exit 1;
