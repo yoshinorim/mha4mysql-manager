@@ -294,6 +294,7 @@ sub ssh_check {
     {
       local $SIG{ALRM} = sub {
         kill 9, $pid;
+        waitpid( $pid, 0 );
         die "Got timeout on checking SSH connection to $ssh_host!";
       };
       alarm $num_secs_to_timeout;
@@ -376,6 +377,7 @@ sub terminate_child {
   eval {
     local $SIG{ALRM} = sub {
       kill 9, $pid;
+      waitpid( $pid, 0 );
       die "Got timeout on $type child process and killed it!";
     };
     alarm $num_secs_to_timeout;
