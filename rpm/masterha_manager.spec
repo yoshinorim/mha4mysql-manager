@@ -1,6 +1,6 @@
 Summary: Master High Availability Manager and Tools for MySQL, Manager Package
 Name: mha4mysql-manager
-Version: 0.52
+Version: 0.53
 Release: 0%{?dist}
 License: GPL v2
 Vendor: DeNA Co.,Ltd.
@@ -57,8 +57,11 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 
 %changelog
-* Fri Sep 16 2011 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
+* Mon Jan 9 2011 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
 - (Note: All changelogs are written here: http://code.google.com/p/mysql-master-ha/wiki/ReleaseNotes )
+- Version 0.53
+
+* Fri Sep 16 2011 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
 - Version 0.52
 
 * Thu Aug 18 2011 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>

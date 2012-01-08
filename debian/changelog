@@ -1,7 +1,13 @@
-mha4mysql-manager (0.52) stable; urgency=low
+mha4mysql-manager (0.53) stable; urgency=low
 
   * (Note: All changelogs are written here: http://code.google.com/p/mysql-master-ha/wiki/ReleaseNotes )
-  * Version 0.51
+  * Version 0.53
+
+ -- Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>  Mon, 9 Jan 2011 00:00:00 +0000
+
+mha4mysql-manager (0.52) stable; urgency=low
+
+  * Version 0.52
 
  -- Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>  Fri, 16 Sep 2011 00:00:00 +0000
 
