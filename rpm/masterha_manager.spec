@@ -57,7 +57,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 
 %changelog
-* Mon Jan 9 2011 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
+* Mon Jan 9 2012 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
 - (Note: All changelogs are written here: http://code.google.com/p/mysql-master-ha/wiki/ReleaseNotes )
 - Version 0.53
 
