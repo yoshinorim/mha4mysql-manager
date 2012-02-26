@@ -253,7 +253,9 @@ sub identify_new_master {
   }
   $log->info(" ok.");
 
-  check_filter( $orig_master, $new_master );
+  if($orig_master->{check_repl_filter}) {
+    check_filter( $orig_master, $new_master );
+  }
 
   my @threads = $new_master->get_running_threads($g_running_seconds_limit);
   if ( $#threads >= 0 ) {
