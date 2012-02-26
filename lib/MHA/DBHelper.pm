@@ -698,16 +698,25 @@ sub get_running_update_threads($$) {
 sub kill_threads {
   my ( $self, @threads ) = @_;
   foreach (@threads) {
-    my $sth = $self->{dbh}->prepare("KILL ?");
-    $sth->execute( $_->{Id} );
+    kill_thread_util( $self->{dbh}, $_->{Id} );
   }
 }
 
 sub kill_thread_util {
   my $dbh = shift;
   my $id  = shift;
-  my $sth = $dbh->prepare("KILL ?");
-  $sth->execute($id);
+  eval {
+    my $sth = $dbh->prepare("KILL ?");
+    $sth->execute($id);
+  };
+  if ($@) {
+    my $mysql_err = $dbh->err;
+    if ( $mysql_err && $mysql_err == $MHA::ManagerConst::MYSQL_UNKNOWN_TID ) {
+      $@ = undef;
+      return;
+    }
+    croak $@;
+  }
 }
 
 sub rename_user($$$) {
