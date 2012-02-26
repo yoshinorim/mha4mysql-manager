@@ -541,7 +541,7 @@ sub check_binlog_stop {
   my $log  = $self->{logger};
   $log->info("Checking binlog writes are stopped or not..");
   my ( $file, $pos ) = $self->get_binlog_position();
-  sleep 1;
+  sleep(0.2);
   my ( $file2, $pos2 ) = $self->get_binlog_position();
   if ( ( $file2 ne $file ) || ( $pos != $pos2 ) ) {
     $log->error(
