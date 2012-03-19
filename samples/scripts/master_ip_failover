@@ -23,6 +23,7 @@ use strict;
 use warnings FATAL => 'all';
 
 use Getopt::Long;
+use MHA::DBHelper;
 
 my (
   $command,          $ssh_user,        $orig_master_host, $orig_master_ip,
