@@ -8,7 +8,7 @@ Group: Manager
 URL: http://code.google.com/p/mysql-master-ha/
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildArch: noarch
-BuildRequires: perl(ExtUtils::MakeMaker) >= 6.42
+BuildRequires: perl(ExtUtils::MakeMaker) >= 6.30
 Requires: perl(Config::Tiny)
 Requires: perl(Log::Dispatch)
 Requires: perl(Parallel::ForkManager)
