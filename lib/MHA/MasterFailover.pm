@@ -51,6 +51,7 @@ my $g_wait_on_failover_error = 0;
 my $g_ignore_last_failover;
 my $g_skip_save_master_binlog;
 my $g_remove_dead_master_conf;
+my $g_skip_disable_read_only;
 my $_real_ssh_reachable;
 my $_saved_file_suffix;
 my $_start_datetime;
@@ -1273,7 +1274,9 @@ sub recover_master($$$) {
   }
 
   # Allow write access on master (if read_only==1)
-  $new_master->disable_read_only();
+  unless ($g_skip_disable_read_only) {
+    $new_master->disable_read_only();
+  }
 
   $log->info("** Finished master recovery successfully.");
   $mail_subject .= " to $new_master->{hostname}";
@@ -1725,6 +1728,7 @@ sub main {
     'skip_save_master_binlog'  => \$g_skip_save_master_binlog,
     'remove_dead_master_conf'  => \$g_remove_dead_master_conf,
     'remove_orig_master_conf'  => \$g_remove_dead_master_conf,
+    'skip_disable_read_only'   => \$g_skip_disable_read_only,
   );
   setpgrp( 0, $$ ) unless ($g_interactive);
 
