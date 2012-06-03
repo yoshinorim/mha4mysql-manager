@@ -253,7 +253,7 @@ sub identify_new_master {
   }
   $log->info(" ok.");
 
-  if($orig_master->{check_repl_filter}) {
+  if ( $orig_master->{check_repl_filter} ) {
     check_filter( $orig_master, $new_master );
   }
 
