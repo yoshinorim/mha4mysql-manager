@@ -31,17 +31,23 @@ use Data::Dumper;
 my $_tstart;
 my $_running_interval = 0.1;
 my (
-  $command,         $orig_master_host, $orig_master_ip, $orig_master_port,
-  $new_master_host, $new_master_ip,    $new_master_port
+  $command,          $orig_master_host, $orig_master_ip,
+  $orig_master_port, $orig_master_user, $orig_master_password,
+  $new_master_host,  $new_master_ip,    $new_master_port,
+  $new_master_user,  $new_master_password
 );
 GetOptions(
-  'command=s'          => \$command,
-  'orig_master_host=s' => \$orig_master_host,
-  'orig_master_ip=s'   => \$orig_master_ip,
-  'orig_master_port=i' => \$orig_master_port,
-  'new_master_host=s'  => \$new_master_host,
-  'new_master_ip=s'    => \$new_master_ip,
-  'new_master_port=i'  => \$new_master_port,
+  'command=s'              => \$command,
+  'orig_master_host=s'     => \$orig_master_host,
+  'orig_master_ip=s'       => \$orig_master_ip,
+  'orig_master_port=i'     => \$orig_master_port,
+  'orig_master_user=s'     => \$orig_master_user,
+  'orig_master_password=s' => \$orig_master_password,
+  'new_master_host=s'      => \$new_master_host,
+  'new_master_ip=s'        => \$new_master_ip,
+  'new_master_port=i'      => \$new_master_port,
+  'new_master_user=s'      => \$new_master_user,
+  'new_master_password=s'  => \$new_master_password,
 );
 
 exit &main();
@@ -119,8 +125,8 @@ sub main {
       my $new_master_handler = new MHA::DBHelper();
 
       # args: hostname, port, user, password, raise_error(die_on_error)_or_not
-      $new_master_handler->connect( $new_master_ip, $new_master_port, "root",
-        "rootpass", 1 );
+      $new_master_handler->connect( $new_master_ip, $new_master_port,
+        $new_master_user, $new_master_password, 1 );
       print current_time_us() . " Set read_only on the new master.. ";
       $new_master_handler->enable_read_only();
       if ( $new_master_handler->is_read_only() ) {
@@ -133,8 +139,8 @@ sub main {
 
       # Connecting to the orig master, die if any database error happens
       my $orig_master_handler = new MHA::DBHelper();
-      $orig_master_handler->connect( $orig_master_ip, $orig_master_port, "root",
-        "rootpass", 1 );
+      $orig_master_handler->connect( $orig_master_ip, $orig_master_port,
+        $orig_master_user, $orig_master_password, 1 );
 
       ## Drop application user so that nobody can connect. Disabling per-session binlog beforehand
       $orig_master_handler->disable_log_bin_local();
@@ -181,8 +187,7 @@ sub main {
         if ( $time_until_kill_threads % 5 == 0 ) {
           printf
 "%s Waiting all running %d queries are disconnected.. (max %d milliseconds)\n",
-            current_time_us(), $#threads + 1,
-            $time_until_kill_threads * 100;
+            current_time_us(), $#threads + 1, $time_until_kill_threads * 100;
           if ( $#threads < 5 ) {
             print Data::Dumper->new( [$_] )->Indent(0)->Terse(1)->Dump . "\n"
               foreach (@threads);
@@ -224,8 +229,8 @@ sub main {
       my $new_master_handler = new MHA::DBHelper();
 
       # args: hostname, port, user, password, raise_error_or_not
-      $new_master_handler->connect( $new_master_ip, $new_master_port, "root",
-        "rootpass", 1 );
+      $new_master_handler->connect( $new_master_ip, $new_master_port,
+        $new_master_user, $new_master_password, 1 );
 
       ## Set read_only=0 on the new master
       $new_master_handler->disable_log_bin_local();

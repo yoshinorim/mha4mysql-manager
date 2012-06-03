@@ -26,21 +26,22 @@ use Getopt::Long;
 use MHA::DBHelper;
 
 my (
-  $command,          $ssh_user,        $orig_master_host, $orig_master_ip,
-  $orig_master_port, $new_master_host, $new_master_ip,    $new_master_port,
-  $new_master_user,  $new_master_password
+  $command,        $ssh_user,         $orig_master_host,
+  $orig_master_ip, $orig_master_port, $new_master_host,
+  $new_master_ip,  $new_master_port,  $new_master_user,
+  $new_master_password
 );
 GetOptions(
-  'command=s'          => \$command,
-  'ssh_user=s'         => \$ssh_user,
-  'orig_master_host=s' => \$orig_master_host,
-  'orig_master_ip=s'   => \$orig_master_ip,
-  'orig_master_port=i' => \$orig_master_port,
-  'new_master_host=s'  => \$new_master_host,
-  'new_master_ip=s'    => \$new_master_ip,
-  'new_master_port=i'  => \$new_master_port,
-  'new_master_user=s'  => \$new_master_user,
-  'new_master_password=s'  => \$new_master_password,
+  'command=s'             => \$command,
+  'ssh_user=s'            => \$ssh_user,
+  'orig_master_host=s'    => \$orig_master_host,
+  'orig_master_ip=s'      => \$orig_master_ip,
+  'orig_master_port=i'    => \$orig_master_port,
+  'new_master_host=s'     => \$new_master_host,
+  'new_master_ip=s'       => \$new_master_ip,
+  'new_master_port=i'     => \$new_master_port,
+  'new_master_user=s'     => \$new_master_user,
+  'new_master_password=s' => \$new_master_password,
 );
 
 exit &main();
@@ -74,8 +75,8 @@ sub main {
       my $new_master_handler = new MHA::DBHelper();
 
       # args: hostname, port, user, password, raise_error_or_not
-      $new_master_handler->connect( $new_master_ip, $new_master_port, $new_master_user,
-        $new_master_password, 1 );
+      $new_master_handler->connect( $new_master_ip, $new_master_port,
+        $new_master_user, $new_master_password, 1 );
 
       ## Set read_only=0 on the new master
       $new_master_handler->disable_log_bin_local();
