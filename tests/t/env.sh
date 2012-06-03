@@ -60,6 +60,16 @@ fail_if_nonempty() {
   fi
 }
 
+is_read_only() {
+READ_ONLY=`mysql -h127.0.0.1 --port=$2 -e "select @@global.read_only\G" | grep read_only | awk '{print $2}'`
+  if [ "$READ_ONLY" = "1" ]; then
+    return
+  else
+    echo "$1 [Fail (read_only is 0)]"
+    exit 1
+  fi
+}
+
 check_sql_yes() {
 SQL_STATUS=`mysql -h127.0.0.1 --port=$2 -e "show slave status\G" | grep Slave_SQL_Running: | awk '{print $2}'`
   if [ "$SQL_STATUS" = "Yes" ]; then

@@ -130,6 +130,7 @@ tests/t/t_mm_subm_dead.sh
 tests/t/t_mm_subm_dead_many.sh
 tests/t/t_mm_subm_dead_noslave.sh
 tests/t/t_needsync_1.sh
+tests/t/t_needsync_1_nocm.sh
 tests/t/t_needsync_2.sh
 tests/t/t_needsync_fail.sh
 tests/t/t_needsync_flush.sh
@@ -140,6 +141,7 @@ tests/t/t_new_master_heavy.sh
 tests/t/t_new_master_heavy_wait.sh
 tests/t/t_no_relay_log.sh
 tests/t/t_normal_crash.sh
+tests/t/t_normal_crash_nocm.sh
 tests/t/t_online_3tier.sh
 tests/t/t_online_3tier_slave.sh
 tests/t/t_online_3tier_slave_keep.sh

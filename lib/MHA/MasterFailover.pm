@@ -51,6 +51,7 @@ my $g_wait_on_failover_error = 0;
 my $g_ignore_last_failover;
 my $g_skip_save_master_binlog;
 my $g_remove_dead_master_conf;
+my $g_skip_change_master;
 my $g_skip_disable_read_only;
 my $_real_ssh_reachable;
 my $_saved_file_suffix;
@@ -1335,6 +1336,14 @@ sub recover_slaves_internal {
         $mail_body .=
 "$target->{hostname}: OK: Applying all logs succeeded. Slave started, replicating from $new_master->{hostname}.\n";
       }
+      elsif ( $exit_code == 10 ) {
+        $target->{recover_ok} = 1;
+        $log->info(
+          sprintf( "-- Slave recovery on host %s succeeded.",
+            $target->get_hostinfo() )
+        );
+        $mail_body .= "$target->{hostname}: OK: Applying all logs succeeded.\n";
+      }
       elsif ( $exit_code == 20 ) {
         $skipping = 1;
         $log->info(
@@ -1406,6 +1415,10 @@ sub recover_slaves_internal {
       $target->current_slave_position();
       if ( recover_slave( $target, $pplog ) ) {
         $pm->finish(1);
+      }
+      if ($g_skip_change_master) {
+        $pplog->info("Skipping change master and start slave");
+        $pm->finish(10);
       }
       if (
         $_server_manager->change_master_and_start_slave(
@@ -1500,23 +1513,30 @@ sub recover_slaves($$$$$) {
     $latest_base_slave );
   my $reset_slave_rc;
   if ( $recover_slave_rc == 0 ) {
-    $log->info("All new slave servers recovered successfully.");
-    $log->info();
-    $log->info("* Phase 5: New master cleanup phease..");
-    $log->info();
-    if ( $new_master->{skip_reset_slave} ) {
-      $log->info("Skipping RESET SLAVE on the new master.");
-      $reset_slave_rc = 0;
+    if ($g_skip_change_master) {
+      $log->info("All slave servers are applied logs successfully.");
+      $log->info();
     }
     else {
-      $log->info("Resetting slave info on the new master..");
-      $reset_slave_rc = $new_master->reset_slave_on_new_master();
-      if ( $reset_slave_rc eq '0' ) {
-        $mail_body .=
-          "$new_master->{hostname}: Resetting slave info succeeded.\n";
+      $log->info("All new slave servers recovered successfully.");
+      $log->info();
+      $log->info("* Phase 5: New master cleanup phease..");
+      $log->info();
+      if ( $new_master->{skip_reset_slave} ) {
+        $log->info("Skipping RESET SLAVE on the new master.");
+        $reset_slave_rc = 0;
       }
       else {
-        $mail_body .= "$new_master->{hostname}: Resetting slave info failed.\n";
+        $log->info("Resetting slave info on the new master..");
+        $reset_slave_rc = $new_master->reset_slave_on_new_master();
+        if ( $reset_slave_rc eq '0' ) {
+          $mail_body .=
+            "$new_master->{hostname}: Resetting slave info succeeded.\n";
+        }
+        else {
+          $mail_body .=
+            "$new_master->{hostname}: Resetting slave info failed.\n";
+        }
       }
     }
   }
@@ -1728,6 +1748,7 @@ sub main {
     'skip_save_master_binlog'  => \$g_skip_save_master_binlog,
     'remove_dead_master_conf'  => \$g_remove_dead_master_conf,
     'remove_orig_master_conf'  => \$g_remove_dead_master_conf,
+    'skip_change_master'       => \$g_skip_change_master,
     'skip_disable_read_only'   => \$g_skip_disable_read_only,
   );
   setpgrp( 0, $$ ) unless ($g_interactive);
