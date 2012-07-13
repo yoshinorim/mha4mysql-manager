@@ -664,7 +664,7 @@ sub wait_until_unreachable($) {
           exit 0;
         };
         if ($@) {
-          my $msg = "Unexpected error heppened when pinging from child! $@";
+          my $msg = "Unexpected error happened when pinging from child! $@";
           $log->error($msg);
           undef $@;
           exit 1;
