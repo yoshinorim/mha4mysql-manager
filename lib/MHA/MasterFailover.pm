@@ -1520,7 +1520,7 @@ sub recover_slaves($$$$$) {
     else {
       $log->info("All new slave servers recovered successfully.");
       $log->info();
-      $log->info("* Phase 5: New master cleanup phease..");
+      $log->info("* Phase 5: New master cleanup phase..");
       $log->info();
       if ( $new_master->{skip_reset_slave} ) {
         $log->info("Skipping RESET SLAVE on the new master.");
