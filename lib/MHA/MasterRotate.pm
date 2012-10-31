@@ -568,7 +568,7 @@ sub switch_slaves($$$$$$) {
   if ( $ret eq '0' ) {
     $log->info("All new slave servers switched successfully.");
     $log->info();
-    $log->info("* Phase 5: New master cleanup phease..");
+    $log->info("* Phase 5: New master cleanup phase..");
     $log->info();
     if ( $new_master->{skip_reset_slave} ) {
       $log->info("Skipping RESET SLAVE on the new master.");
