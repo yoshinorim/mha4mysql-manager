@@ -60,10 +60,14 @@ sub do_ssh_connection_check {
         "$workdir/$target->{ssh_host}_$target->{ssh_port}_ssh_check.log";
       if ($exit_code) {
         $failed = 1;
-        $log->error( "\n" . `cat $local_file` );
+        if ( -f $local_file ) {
+          $log->error( "\n" . `cat $local_file` );
+        }
       }
       else {
-        $log->debug( "\n" . `cat $local_file` );
+        if ( -f $local_file ) {
+          $log->debug( "\n" . `cat $local_file` );
+        }
       }
       unlink $local_file;
     }
