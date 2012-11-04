@@ -89,7 +89,7 @@ our $DEFAULT_GLOBAL_CONF = "/etc/masterha_default.cnf";
 our $log_fmt = sub {
   my %args = @_;
   my $msg  = $args{message};
-  $msg = "" unless($msg);
+  $msg = "" unless ($msg);
   chomp $msg;
   if ( $args{level} eq "error" ) {
     my ( $ln, $script ) = ( caller(4) )[ 2, 1 ];
