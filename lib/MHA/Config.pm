@@ -31,7 +31,7 @@ use MHA::NodeUtil;
 use MHA::ManagerConst;
 
 my @PARAM_ARRAY =
-  qw/ hostname ip port ssh_host ssh_ip ssh_port ssh_options node_label candidate_master no_master ignore_fail skip_init_ssh_check skip_reset_slave user password repl_user repl_password disable_log_bin master_pid_file handle_raw_binlog ssh_user remote_workdir master_binlog_dir log_level manager_workdir manager_log check_repl_delay check_repl_filter latest_priority multi_tier_slave ping_interval ping_type secondary_check_script master_ip_failover_script master_ip_online_change_script shutdown_script report_script init_conf_load_script /;
+  qw/ hostname ip port ssh_host ssh_ip ssh_port ssh_connection_timeout ssh_options node_label candidate_master no_master ignore_fail skip_init_ssh_check skip_reset_slave user password repl_user repl_password disable_log_bin master_pid_file handle_raw_binlog ssh_user remote_workdir master_binlog_dir log_level manager_workdir manager_log check_repl_delay check_repl_filter latest_priority multi_tier_slave ping_interval ping_type secondary_check_script master_ip_failover_script master_ip_online_change_script shutdown_script report_script init_conf_load_script /;
 my %PARAM;
 for (@PARAM_ARRAY) { $PARAM{$_} = 1; }
 
@@ -102,6 +102,17 @@ sub parse_server {
         $MHA::ManagerConst::SSH_OPT_CHECK_DEFAULT . " $value{ssh_options}";
     }
   }
+
+  $value{ssh_connection_timeout} = $param_arg->{ssh_connection_timeout};
+  if ( !defined( $value{ssh_connection_timeout} ) ) {
+    $value{ssh_connection_timeout} = $default->{ssh_connection_timeout};
+    $value{ssh_connection_timeout} = 5
+      unless ( $value{ssh_connection_timeout} );
+  }
+  check_positive_int( "ssh_connection_timeout",
+    $value{ssh_connection_timeout} );
+  $MHA::ManagerConst::SSH_OPT_CHECK =~
+    s/VAR_CONNECT_TIMEOUT/$value{ssh_connection_timeout}/;
 
   $value{user} = $param_arg->{user};
   if ( !defined( $value{user} ) ) {
@@ -263,11 +274,7 @@ sub parse_server {
     $value{ping_interval} = $default->{ping_interval};
     $value{ping_interval} = 3 if ( !defined( $value{ping_interval} ) );
   }
-  croak
-"Parameter ping_interval must be positive integer! current value: $value{ping_interval}\n"
-    if ( $value{ping_interval} !~ /\d/
-    || $value{ping_interval} =~ /\D/
-    || $value{ping_interval} < 1 );
+  check_positive_int( "ping_interval", $value{ping_interval} );
 
   my $server = new MHA::Server();
   foreach my $key ( keys(%PARAM) ) {
@@ -278,6 +285,16 @@ sub parse_server {
   }
 
   return $server;
+}
+
+sub check_positive_int($$) {
+  my $param_name  = shift;
+  my $param_value = shift;
+  croak
+"Parameter $param_name must be positive integer! current value: $param_value\n"
+    if ( $param_value !~ /\d/
+    || $param_value =~ /\D/
+    || $param_value < 1 );
 }
 
 sub read_config($) {

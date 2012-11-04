@@ -113,8 +113,9 @@ sub check_master_ssh_env($) {
   my $ssh_reachable;
   if (
     MHA::HealthCheck::ssh_check_simple(
-      $target->{ssh_user}, $target->{ssh_host}, $target->{ssh_ip},
-      $target->{ssh_port}, $target->{logger},   5
+      $target->{ssh_user}, $target->{ssh_host},
+      $target->{ssh_ip},   $target->{ssh_port},
+      $target->{logger},   $target->{ssh_connection_timeout}
     )
     )
   {
@@ -400,22 +401,23 @@ sub wait_until_master_is_unreachable() {
     $log->debug("SSH check command: $ssh_check_command");
 
     $master_ping = new MHA::HealthCheck(
-      user              => $current_master->{user},
-      password          => $current_master->{password},
-      ip                => $current_master->{ip},
-      hostname          => $current_master->{hostname},
-      port              => $current_master->{port},
-      interval          => $current_master->{ping_interval},
-      ssh_user          => $current_master->{ssh_user},
-      ssh_host          => $current_master->{ssh_host},
-      ssh_ip            => $current_master->{ssh_ip},
-      ssh_port          => $current_master->{ssh_port},
-      ssh_check_command => $ssh_check_command,
-      status_handler    => $_status_handler,
-      logger            => $log,
-      logfile           => $g_logfile,
-      workdir           => $g_workdir,
-      ping_type         => $current_master->{ping_type},
+      user                   => $current_master->{user},
+      password               => $current_master->{password},
+      ip                     => $current_master->{ip},
+      hostname               => $current_master->{hostname},
+      port                   => $current_master->{port},
+      interval               => $current_master->{ping_interval},
+      ssh_user               => $current_master->{ssh_user},
+      ssh_host               => $current_master->{ssh_host},
+      ssh_ip                 => $current_master->{ssh_ip},
+      ssh_port               => $current_master->{ssh_port},
+      ssh_connection_timeout => $current_master->{ssh_connection_timeout},
+      ssh_check_command      => $ssh_check_command,
+      status_handler         => $_status_handler,
+      logger                 => $log,
+      logfile                => $g_logfile,
+      workdir                => $g_workdir,
+      ping_type              => $current_master->{ping_type},
     );
     $log->info(
       sprintf( "Set master ping interval %d seconds.",

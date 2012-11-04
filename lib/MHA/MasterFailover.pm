@@ -460,7 +460,7 @@ sub force_shutdown($) {
       MHA::HealthCheck::ssh_check_simple(
         $dead_master->{ssh_user}, $dead_master->{ssh_host},
         $dead_master->{ssh_ip},   $dead_master->{ssh_port},
-        $dead_master->{logger},   5
+        $dead_master->{logger},   $dead_master->{ssh_connection_timeout}
       )
       )
     {

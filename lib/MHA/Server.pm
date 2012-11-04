@@ -354,8 +354,9 @@ sub check_set_ssh_status {
   if ( !$self->{dead} ) {
     if (
       MHA::HealthCheck::ssh_check_simple(
-        $self->{ssh_user}, $self->{ssh_host}, $self->{ssh_ip},
-        $self->{ssh_port}, $self->{logger},   5
+        $self->{ssh_user}, $self->{ssh_host},
+        $self->{ssh_ip},   $self->{ssh_port},
+        $self->{logger},   $self->{ssh_connection_timeout}
       )
       || MHA::ManagerUtil::check_node_version_nodie(
         $log,            $self->{ssh_user}, $self->{ssh_host},

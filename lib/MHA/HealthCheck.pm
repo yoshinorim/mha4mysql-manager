@@ -48,6 +48,7 @@ sub new {
     ssh_ip                 => undef,
     ssh_port               => undef,
     ssh_check_command      => undef,
+    ssh_connection_timeout => undef,
     workdir                => undef,
     status_handler         => undef,
     secondary_check_script => undef,
@@ -297,6 +298,9 @@ sub ssh_check {
         waitpid( $pid, 0 );
         die "Got timeout on checking SSH connection to $ssh_host!";
       };
+      $log->debug(
+"SSH connection test to $ssh_host, option $MHA::ManagerConst::SSH_OPT_CHECK, timeout $num_secs_to_timeout"
+      );
       alarm $num_secs_to_timeout;
       waitpid( $pid, 0 );
       alarm 0;
@@ -429,7 +433,7 @@ sub invoke_ssh_check {
       exit ssh_check(
         $self->{ssh_user}, $self->{ssh_host},
         $self->{ssh_ip},   $self->{ssh_port},
-        $self->{logger},   $self->{interval} * 3,
+        $self->{logger},   $self->{ssh_connection_timeout},
         $self->{ssh_check_command}
       );
     }

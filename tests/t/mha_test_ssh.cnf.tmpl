@@ -1,0 +1,45 @@
+[server default]
+user=root
+password=msandbox
+ping_interval=3
+init_conf_load_script=""
+shutdown_script=""
+master_ip_failover_script=""
+master_ip_online_change_script=""
+report_script=""
+log_level = debug
+ssh_connection_timeout = 20
+
+[server1]
+hostname=127.0.0.1
+port=10000
+master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/master/data/
+candidate_master=1
+node_label=sandbox master
+
+[server2]
+hostname=127.0.0.1
+port=10001
+candidate_master=1
+master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node1/data/
+node_label=sandbox slave1
+
+[server3]
+hostname=127.0.0.1
+port=10002
+master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node2/data/
+node_label=sandbox slave2
+
+[server4]
+hostname=127.0.0.1
+port=10003
+master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node3/data/
+node_label=sandbox slave3
+
+[server5]
+hostname=127.0.0.1
+port=10004
+master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/node4/data/
+node_label=sandbox slave4
+
+
