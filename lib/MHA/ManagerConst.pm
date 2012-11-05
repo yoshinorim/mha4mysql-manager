@@ -77,7 +77,7 @@ our $ST_FAILOVER_ERROR_S   = "$ST_FAILOVER_ERROR:FAILOVER_ERROR";
 our $USE_SSH_OPTIONS = 0;
 our $SSH_OPT_ALIVE   = $MHA::NodeConst::SSH_OPT_ALIVE;
 our $SSH_OPT_CHECK =
-"-o StrictHostKeyChecking=no -o PasswordAuthentication=no -o ConnectTimeout=VAR_CONNECT_TIMEOUT";
+"-o StrictHostKeyChecking=no -o PasswordAuthentication=no -o BatchMode=yes -o ConnectTimeout=VAR_CONNECT_TIMEOUT";
 our $SSH_OPT_ALIVE_DEFAULT = $SSH_OPT_ALIVE;
 our $SSH_OPT_CHECK_DEFAULT = $SSH_OPT_CHECK;
 
