@@ -60,10 +60,12 @@ tests/t/change_relay_log_info.sh
 tests/t/check
 tests/t/env.sh
 tests/t/force_start_m.sh
+tests/t/grant.sql
 tests/t/init.sh
 tests/t/insert.pl
 tests/t/insert_binary.pl
 tests/t/kill_m.sh
+tests/t/master_ip_failover
 tests/t/mha_test.cnf.tmpl
 tests/t/mha_test_connect.cnf.tmpl
 tests/t/mha_test_err1.cnf.tmpl
@@ -75,6 +77,7 @@ tests/t/mha_test_mm_online.cnf.tmpl
 tests/t/mha_test_multi.cnf.tmpl
 tests/t/mha_test_multi_online.cnf.tmpl
 tests/t/mha_test_online.cnf.tmpl
+tests/t/mha_test_pass.cnf.tmpl
 tests/t/mha_test_reset.cnf.tmpl
 tests/t/mha_test_ssh.cnf.tmpl
 tests/t/my-row.cnf
@@ -132,8 +135,10 @@ tests/t/t_mm_subm_dead_many.sh
 tests/t/t_mm_subm_dead_noslave.sh
 tests/t/t_needsync_1.sh
 tests/t/t_needsync_1_nocm.sh
+tests/t/t_needsync_1_pass.sh
 tests/t/t_needsync_1_ssh.sh
 tests/t/t_needsync_2.sh
+tests/t/t_needsync_2_pass.sh
 tests/t/t_needsync_2_ssh.sh
 tests/t/t_needsync_fail.sh
 tests/t/t_needsync_flush.sh
@@ -163,6 +168,7 @@ tests/t/t_recover_slave_fail.sh
 tests/t/t_recover_slave_fail2.sh
 tests/t/t_recover_slave_ok.sh
 tests/t/t_save_master_log.sh
+tests/t/t_save_master_log_pass.sh
 tests/t/t_save_master_log_ssh.sh
 tests/t/t_slave_incorrect.sh
 tests/t/t_slave_sql_start.sh

@@ -1,10 +1,11 @@
 [server default]
-user=root
-password=msandbox
+# for a user created by grant all privileges on *.* to '"\'!=#&;`=|*?$\\' identified by 'pass"\'!#&;`|*?~<>^()[]{}$\\, "\'!#&;`|*?~=<>^()[]{}$\\, \\';
+user=""'!=#&;`=|*?$\"
+password= "pass"'!#&;`|*?~<>^()[]{}$\, "'!#&;`|*?~=<>^()[]{}$\, \"
 ping_interval=3
 init_conf_load_script=""
 shutdown_script=""
-master_ip_failover_script=./master_ip_failover
+master_ip_failover_script=""
 master_ip_online_change_script=""
 report_script=""
 
