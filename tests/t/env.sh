@@ -46,6 +46,13 @@ fail_if_nonzero() {
   fi
 }
 
+fail_if_nonN() {
+  if test $2 -ne $3 ; then
+    echo "$1 [Fail] (expected $3 exit code, but $2 returned)"
+    exit 1
+  fi
+}
+
 fail_if_empty() {
   if test ! -s $2 ; then
     echo "$1 [Fail] ($2 is empty)"

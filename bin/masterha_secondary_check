@@ -28,6 +28,7 @@ use MHA::ManagerConst;
 my @monitoring_servers;
 my ( $help, $version, $ssh_user, $ssh_port, $ssh_options, $master_host,
   $master_ip, $master_port );
+my $timeout = 5;
 
 $| = 1;
 GetOptions(
@@ -40,6 +41,7 @@ GetOptions(
   'master_host=s'    => \$master_host,
   'master_ip=s'      => \$master_ip,
   'master_port=i'    => \$master_port,
+  'timeout=i'        => \$timeout,
 );
 
 if ($version) {
@@ -55,17 +57,19 @@ unless ($master_host) {
   pod2usage(1);
 }
 
-$ssh_user    = "root" unless ($ssh_user);
-$ssh_port    = 22     unless ($ssh_port);
-$master_port = 3306   unless ($master_port);
-if ($ssh_options) {
-  $MHA::ManagerConst::SSH_OPT_CHECK = $ssh_options;
-}
-
 sub exit_by_signal {
   exit 1;
 }
 local $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = \&exit_by_signal;
+
+$ssh_user    = "root" unless ($ssh_user);
+$ssh_port    = 22     unless ($ssh_port);
+$master_port = 3306   unless ($master_port);
+
+if ($ssh_options) {
+  $MHA::ManagerConst::SSH_OPT_CHECK = $ssh_options;
+}
+$MHA::ManagerConst::SSH_OPT_CHECK =~ s/VAR_CONNECT_TIMEOUT/$timeout/;
 
 # 0: master is not reachable from all monotoring servers
 # 1: unknown errors
@@ -79,7 +83,7 @@ foreach my $monitoring_server (@monitoring_servers) {
 "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \"perl -e "
     . "\\\"use IO::Socket::INET; my \\\\\\\$sock = IO::Socket::INET->new"
     . "(PeerAddr => \\\\\\\"$master_host\\\\\\\", PeerPort=> $master_port, "
-    . "Proto =>'tcp', Timeout => 4); if(\\\\\\\$sock) { close(\\\\\\\$sock); "
+    . "Proto =>'tcp', Timeout => $timeout); if(\\\\\\\$sock) { close(\\\\\\\$sock); "
     . "exit 3; } exit 0;\\\" \"";
   my $ret = system($command);
   $ret = $ret >> 8;
