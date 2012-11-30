@@ -110,6 +110,7 @@ tests/t/t_ignore_recovery1.sh
 tests/t/t_ignore_recovery2.sh
 tests/t/t_ignore_recovery3.sh
 tests/t/t_ignore_recovery4.sh
+tests/t/t_ignore_start.sh
 tests/t/t_keep_relay_log_purge.sh
 tests/t/t_large_data.sh
 tests/t/t_large_data_bulk.sh

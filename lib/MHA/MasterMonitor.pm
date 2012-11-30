@@ -48,6 +48,7 @@ my $g_interactive = 1;
 my $g_logfile;
 my $g_wait_on_monitor_error = 0;
 my $g_skip_ssh_check;
+my $g_ignore_fail_on_start = 0;
 my $_master_node_version;
 my $_server_manager;
 my $RETRY = 100;
@@ -359,7 +360,8 @@ sub wait_until_master_is_unreachable() {
         sprintf( "Identified master is %s.", $current_master->get_hostinfo() )
       );
     }
-    $_server_manager->validate_num_alive_servers( $current_master, 0 );
+    $_server_manager->validate_num_alive_servers( $current_master,
+      $g_ignore_fail_on_start );
     if ( check_master_ssh_env($current_master) ) {
       if ( check_master_binlog($current_master) ) {
         $log->error("Master configuration failed.");
@@ -634,6 +636,7 @@ sub main {
     'manager_log=s'           => \$g_logfile,
     'skip_ssh_check'          => \$g_skip_ssh_check,          # for testing
     'skip_check_ssh'          => \$g_skip_ssh_check,
+    'ignore_fail_on_start'    => \$g_ignore_fail_on_start,
   );
   setpgrp( 0, $$ ) unless ($g_interactive);
 
