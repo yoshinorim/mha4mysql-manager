@@ -9,5 +9,11 @@ Homepage: http://code.google.com/p/mysql-master-ha/
 
 Package: mha4mysql-manager
 Architecture: all
-Depends: ${misc:Depends}, ${perl:Depends}, libdbi-perl, libdbd-mysql-perl, libconfig-tiny-perl, liblog-dispatch-perl, libparallel-forkmanager-perl, mha4mysql-node
+Depends: ${misc:Depends}, ${perl:Depends},
+  libdbi-perl,
+  libdbd-mysql-perl,
+  libconfig-tiny-perl,
+  liblog-dispatch-perl,
+  libparallel-forkmanager-perl,
+  mha4mysql-node (>= 0.54)
 Description: Master High Availability Manager and Tools for MySQL, Manager Package

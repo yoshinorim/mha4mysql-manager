@@ -12,7 +12,7 @@ BuildRequires: perl(ExtUtils::MakeMaker) >= 6.30
 Requires: perl(Config::Tiny)
 Requires: perl(Log::Dispatch)
 Requires: perl(Parallel::ForkManager)
-Requires: mha4mysql-node
+Requires: mha4mysql-node >= 0.54
 Source0: mha4mysql-manager-%{version}.tar.gz
 
 %description
@@ -57,8 +57,11 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 
 %changelog
-* Sat Dec 1 2012 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
+* Wed Dec 12 2012 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
 - (Note: All changelogs are written here: http://code.google.com/p/mysql-master-ha/wiki/ReleaseNotes )
+- Version 0.55
+
+* Sat Dec 1 2012 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
 - Version 0.54
 
 * Mon Jan 9 2012 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
