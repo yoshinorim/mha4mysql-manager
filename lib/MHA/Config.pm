@@ -288,7 +288,7 @@ sub parse_server {
   foreach my $key ( 'user', 'password' ) {
     my $new_key = "escaped_" . $key;
     if ( $server->{$key} ) {
-      $server->{$new_key} = MHA::NodeUtil::escape_for_shell( $value{$key} );
+      $server->{$new_key} = MHA::NodeUtil::escape_for_shell( $server->{$key} );
     }
     else {
       $server->{$new_key} = "";
