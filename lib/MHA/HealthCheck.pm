@@ -291,8 +291,7 @@ sub ssh_check {
   my $ssh_user_host       = $ssh_user . '@' . $ssh_ip;
   my $rc                  = 1;
   eval {
-    if ( my $pid = fork )
-    {
+    if ( my $pid = fork ) {
       local $SIG{ALRM} = sub {
         kill 9, $pid;
         waitpid( $pid, 0 );
@@ -448,8 +447,7 @@ sub is_secondary_down {
   my $log            = $self->{logger};
   my $master_is_down = 0;
   eval {
-    if ( $self->{_sec_check_invoked} )
-    {
+    if ( $self->{_sec_check_invoked} ) {
       waitpid( $self->{_sec_check_pid}, 0 );
       my $sec_check_exit_code = $?;
       $self->{_sec_check_invoked} = 0;
@@ -478,8 +476,7 @@ sub is_ssh_reachable {
   my $log           = $self->{logger};
   my $ssh_reachable = 2;
   eval {
-    if ( $self->{_ssh_check_invoked} )
-    {
+    if ( $self->{_ssh_check_invoked} ) {
       waitpid( $self->{_ssh_check_pid}, 0 );
       my $ssh_check_exit_code = $?;
       $self->{_ssh_check_invoked} = 0;
@@ -576,16 +573,15 @@ sub wait_until_unreachable($) {
   my $master_is_down = 0;
 
   eval {
-    while (1)
-    {
+    while (1) {
       $self->{_tstart} = [gettimeofday];
       if ( $self->{_need_reconnect} ) {
         my ( $rc, $mysql_err ) = $self->connect();
         if ($rc) {
           if ($mysql_err) {
             if (
-              grep ( $_ == $mysql_err, @MHA::ManagerConst::ALIVE_ERROR_CODES ) >
-              0 )
+              grep ( $_ == $mysql_err, @MHA::ManagerConst::ALIVE_ERROR_CODES )
+              > 0 )
             {
               $log->info(
 "Got MySQL error $mysql_err, but this is not mysql crash. Continue health check.."
@@ -655,8 +651,7 @@ sub wait_until_unreachable($) {
 
         # Child process
         eval {
-          if ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_CONNECT )
-          {
+          if ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_CONNECT ) {
             exit $self->ping_connect();
           }
           elsif ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_SELECT ) {

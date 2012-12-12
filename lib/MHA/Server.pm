@@ -574,8 +574,7 @@ sub reconnect($) {
   my $self      = shift;
   my $conn_lost = 0;
   eval {
-    if ( !$self->{dbh}->ping() )
-    {
+    if ( !$self->{dbh}->ping() ) {
       die;
     }
   };

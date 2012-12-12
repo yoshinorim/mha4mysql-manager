@@ -373,10 +373,10 @@ sub validate_repl_filter($$) {
       $binlog_ignore_db = $_->{Binlog_Ignore_DB} unless ($binlog_ignore_db);
     }
     if ( $replicate_do_db ne $_->{Replicate_Do_DB}
-      || $replicate_ignore_db         ne $_->{Replicate_Ignore_DB}
-      || $replicate_do_table          ne $_->{Replicate_Do_Table}
-      || $replicate_ignore_table      ne $_->{Replicate_Ignore_Table}
-      || $replicate_wild_do_table     ne $_->{Replicate_Wild_Do_Table}
+      || $replicate_ignore_db ne $_->{Replicate_Ignore_DB}
+      || $replicate_do_table ne $_->{Replicate_Do_Table}
+      || $replicate_ignore_table ne $_->{Replicate_Ignore_Table}
+      || $replicate_wild_do_table ne $_->{Replicate_Wild_Do_Table}
       || $replicate_wild_ignore_table ne $_->{Replicate_Wild_Ignore_Table} )
     {
       $log->error(
@@ -1083,7 +1083,7 @@ sub get_bad_candidate_masters($$$) {
   foreach (@servers) {
     if (
          $_->{no_master} >= 1
-      || $_->{log_bin}              eq '0'
+      || $_->{log_bin} eq '0'
       || $_->{oldest_major_version} eq '0'
       || (
         $latest_slave
@@ -1243,7 +1243,8 @@ sub change_master_and_start_slave {
   $log->info(
     sprintf(
       " Resetting slave %s and starting replication from the new master %s..",
-      $target->get_hostinfo(), $master->get_hostinfo()
+      $target->get_hostinfo(),
+      $master->get_hostinfo()
     )
   );
   $target->stop_slave($log) unless ( $target->{not_slave} );

@@ -226,8 +226,8 @@ sub identify_new_master {
   my $orig_master = shift;
   $_server_manager->set_latest_slaves( $_server_manager->{alive_slaves} );
   my $new_master =
-    $_server_manager->select_new_master( $g_new_master_host, $g_new_master_port,
-    0 );
+    $_server_manager->select_new_master( $g_new_master_host,
+    $g_new_master_port, 0 );
   unless ($new_master) {
     $log->error("Failed to get new master!");
     croak;

@@ -157,8 +157,8 @@ sub check_settings($) {
   if (
     !(
          $_dead_master_arg{hostname} eq $m->{hostname}
-      && $_dead_master_arg{ip}       eq $m->{ip}
-      && $_dead_master_arg{port}     eq $m->{port}
+      && $_dead_master_arg{ip} eq $m->{ip}
+      && $_dead_master_arg{port} eq $m->{port}
     )
     )
   {
@@ -235,14 +235,15 @@ sub check_settings($) {
 
     # Master_Host is either hostname or IP address of the current master
     if ( $dead_master->{hostname} ne $slave->{Master_Host}
-      && $dead_master->{ip}       ne $slave->{Master_Host}
+      && $dead_master->{ip} ne $slave->{Master_Host}
       && $dead_master->{hostname} ne $slave->{Master_IP}
-      && $dead_master->{ip}       ne $slave->{Master_IP} )
+      && $dead_master->{ip} ne $slave->{Master_IP} )
     {
       $log->error(
         sprintf(
           "Slave %s does not replicate from dead master %s. Stop failover.",
-          $slave->get_hostinfo(), $dead_master->get_hostinfo()
+          $slave->get_hostinfo(),
+          $dead_master->get_hostinfo()
         )
       );
       croak;
