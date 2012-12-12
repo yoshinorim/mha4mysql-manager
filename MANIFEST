@@ -13,6 +13,7 @@ debian/changelog
 debian/compat
 debian/control
 debian/copyright
+debian/docs
 debian/rules
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm

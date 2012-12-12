@@ -1,6 +1,8 @@
 \bRCS\b
 \bCVS\b
 ^MANIFEST\.
+^MYMETA\.json
+^MYMETA\.yml
 ^Makefile$
 ~$
 \.log$
