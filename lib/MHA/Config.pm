@@ -280,14 +280,20 @@ sub parse_server {
   foreach my $key ( keys(%PARAM) ) {
     if ( $value{$key} ) {
       $value{$key} =~ s/^['"]?(.*)['"]$/$1/;
-      if ( $key eq "user" || $key eq "password" ) {
-        my $new_key = "escaped_" . $key;
-        $server->{$new_key} = MHA::NodeUtil::escape_for_shell( $value{$key} );
-      }
     }
     $server->{$key} = $value{$key};
   }
 
+  # set escaped_user and escaped_password
+  foreach my $key ( 'user', 'password' ) {
+    my $new_key = "escaped_" . $key;
+    if ( $server->{$key} ) {
+      $server->{$new_key} = MHA::NodeUtil::escape_for_shell( $value{$key} );
+    }
+    else {
+      $server->{$new_key} = "";
+    }
+  }
   return $server;
 }
 
