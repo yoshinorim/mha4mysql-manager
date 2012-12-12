@@ -1,0 +1,63 @@
+#!/usr/bin/env perl
+
+# Test purpose. Checking arguments only
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long;
+
+my (
+  $command,          $orig_master_host, $orig_master_ip,
+  $orig_master_port, $orig_master_user, $orig_master_password,
+  $new_master_host,  $new_master_ip,    $new_master_port,
+  $new_master_user,  $new_master_password
+);
+GetOptions(
+  'command=s'              => \$command,
+  'orig_master_host=s'     => \$orig_master_host,
+  'orig_master_ip=s'       => \$orig_master_ip,
+  'orig_master_port=i'     => \$orig_master_port,
+  'orig_master_user=s'     => \$orig_master_user,
+  'orig_master_password=s' => \$orig_master_password,
+  'new_master_host=s'      => \$new_master_host,
+  'new_master_ip=s'        => \$new_master_ip,
+  'new_master_port=i'      => \$new_master_port,
+  'new_master_user=s'      => \$new_master_user,
+  'new_master_password=s'  => \$new_master_password,
+);
+
+exit &main();
+
+sub main {
+  if ( $command eq "stop" || $command eq "stopssh" ) {
+    my $exit_code = 1;
+    eval {
+      $exit_code = 0;
+    };
+    if ($@) {
+      warn "Got Error: $@\n";
+      exit $exit_code;
+    }
+    exit $exit_code;
+  }
+  elsif ( $command eq "start" ) {
+    my $exit_code = 10;
+    eval {
+      $exit_code = 0;
+    };
+    if ($@) {
+      warn $@;
+      exit $exit_code;
+    }
+    exit $exit_code;
+  }
+  elsif ( $command eq "status" ) {
+    exit 0;
+  }
+  else {
+    exit 1;
+  }
+}
+
+

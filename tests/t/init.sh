@@ -22,4 +22,12 @@ rm -f /var/tmp/*127.0.0.1_*.binlog
 rm -f /var/tmp/*127.0.0.1_*.log
 rm -f /var/tmp/mha_test*
 
+mysql $M -e "source grant.sql"
+mysql $M -e "source grant_nopass.sql"
 mysql $M test -e "create table t1 (id int primary key, value int, value2 text) engine=innodb; insert into t1 values(1, 100, 'abc');"
+
+wait_until_count $0 $S1P 1
+wait_until_count $0 $S2P 1
+wait_until_count $0 $S3P 1
+wait_until_count $0 $S4P 1
+

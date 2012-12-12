@@ -144,3 +144,20 @@ wait_until_manager_start() {
     sleep 1
   done
 }
+
+wait_until_count() {
+  i=1
+  while :
+  do
+ROW_COUNT=`mysql -h127.0.0.1 --port=$2 test -e "select count(*) from t1\G" 2> /dev/null | grep count | awk {'print $2'}`
+    if [ "$ROW_COUNT" = $3 ]; then
+      break
+    fi
+    i=`expr $i + 1`
+    if [ $i -gt 120 ]; then
+      echo "$1 [Fail (wait timeout)]"
+      exit 1
+    fi
+    sleep 1
+  done
+}

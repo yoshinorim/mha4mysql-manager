@@ -1,6 +1,4 @@
 . ./init.sh
-mysql $M -e "source grant.sql"
-sleep 2
 mysql $S1 -e "stop slave io_thread"
 mysql $S2 -e "stop slave io_thread"
 mysql $S3 -e "stop slave io_thread"
