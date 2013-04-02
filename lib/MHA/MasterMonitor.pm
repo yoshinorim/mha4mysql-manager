@@ -167,6 +167,12 @@ sub check_slave_env() {
     my $ssh_user_host = $s->{ssh_user} . '@' . $s->{ssh_ip};
     my $command =
 "apply_diff_relay_logs --command=test --slave_user=$s->{escaped_user} --slave_host=$s->{hostname} --slave_ip=$s->{ip} --slave_port=$s->{port} --workdir=$s->{remote_workdir} --target_version=$s->{mysql_version} --manager_version=$MHA::ManagerConst::VERSION";
+    if ( $s->{client_bindir} ) {
+      $command .= " --client_bindir=$s->{client_bindir}";
+    }
+    if ( $s->{client_libdir} ) {
+      $command .= " --client_libdir=$s->{client_libdir}";
+    }
     if ( $s->{relay_log_info_type} eq "TABLE" ) {
       $command .=
 " --relay_dir=$s->{relay_dir} --current_relay_log=$s->{current_relay_log} ";

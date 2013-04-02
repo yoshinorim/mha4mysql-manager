@@ -31,6 +31,18 @@ export S4P=10004
 export CONF=mha_test.cnf
 export CONF_LATEST=mha_test_latest.cnf
 export CONF_IGNORE=mha_test_ignore.cnf
+export CLIENT_BINDIR=""
+export CLIENT_LIBDIR=""
+if [ "A$CUSTOM_CLIENTS" = "Ayes" ]; then
+  export CLIENT_BINDIR="client_bindir=/opt/mysql/$VERSION/bin"
+  export CLIENT_LIBDIR="client_libdir=/opt/mysql/$VERSION/lib/mysql"
+elif [ "A$CUSTOM_CLIENTS" = "Abad" ]; then
+  export CLIENT_BINDIR="client_bindir=/opt/mysql/$VERSION"
+  export CLIENT_LIBDIR="client_libdir=/opt/mysql/$VERSION"
+else
+  export CLIENT_BINDIR=""
+  export CLIENT_LIBDIR=""
+fi
 
 fail_if_zero() {
   if test $2 -eq 0 ; then

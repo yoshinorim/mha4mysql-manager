@@ -7,7 +7,9 @@ SANDBOX_HOME_ESC=`echo $SANDBOX_HOME | sed -e 's/\//\\\\\\//g'`
 for tmpl in `ls mha_test*.cnf.tmpl`
 do
 cnf=${tmpl%.tmpl}
-sed -e "s/##VERSION_DIR##/$VERSION_DIR/g" -e "s/##SANDBOX_HOME##/$SANDBOX_HOME_ESC/g" $tmpl > $cnf
+sed -e "s/##VERSION_DIR##/$VERSION_DIR/g" -e "s/##SANDBOX_HOME##/$SANDBOX_HOME_ESC/g" \
+  -e "s:##CLIENT_BINDIR##:$CLIENT_BINDIR:" -e "s:##CLIENT_LIBDIR##:$CLIENT_LIBDIR:" \
+  $tmpl > $cnf
 done
 
 $SANDBOX_HOME/send_kill_all  > bootstrap.log 2>&1

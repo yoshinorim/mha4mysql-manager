@@ -9,11 +9,13 @@ use File::Copy;
 my $mysql_version;
 my $use_row_format;
 my $init_script;
+my $custom_clients = "no";
 my $tests;
 GetOptions(
   'mysql_version=s' => \$mysql_version,
   'use_row_format'  => \$use_row_format,
   'init_script=s'   => \$init_script,
+  'custom_clients=s' => \$custom_clients,
   'tests=s'         => \$tests,
 );
 
@@ -38,6 +40,7 @@ if ($init_script) {
 unless ($tests) {
   $tests= "*";
 }
+$ENV{'CUSTOM_CLIENTS'}=$custom_clients;
 
 my @test_files = `ls t_$tests.sh`;
 foreach my $test_file (@test_files) {
