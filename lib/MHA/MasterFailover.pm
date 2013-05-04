@@ -530,6 +530,12 @@ sub save_master_binlog_internal {
   }
   my $command =
 "save_binary_logs --command=save --start_file=$master_log_file  --start_pos=$read_master_log_pos --binlog_dir=$dead_master->{master_binlog_dir} --output_file=$_diff_binary_log_remote --handle_raw_binlog=$dead_master->{handle_raw_binlog} --disable_log_bin=$dead_master->{disable_log_bin} --manager_version=$MHA::ManagerConst::VERSION";
+  if ( $dead_master->{client_bindir} ) {
+    $command .= " --client_bindir=$dead_master->{client_bindir}";
+  }
+  if ( $dead_master->{client_libdir} ) {
+    $command .= " --client_libdir=$dead_master->{client_libdir}";
+  }
   unless ( $dead_master->{handle_raw_binlog} ) {
     my $oldest_version = $_server_manager->get_oldest_version();
     $command .= " --oldest_version=$oldest_version ";
@@ -634,6 +640,12 @@ sub find_slave_with_all_relay_logs {
       $latest_slave->{ssh_user} . '@' . $latest_slave->{ssh_ip};
     my $command =
 "apply_diff_relay_logs --command=find --latest_mlf=$latest_slave->{Master_Log_File} --latest_rmlp=$latest_slave->{Read_Master_Log_Pos} --target_mlf=$oldest_master_log_file --target_rmlp=$oldest_master_log_pos --server_id=$latest_slave->{server_id} --workdir=$latest_slave->{remote_workdir} --timestamp=$_start_datetime --manager_version=$MHA::ManagerConst::VERSION";
+    if ( $latest_slave->{client_bindir} ) {
+      $command .= " --client_bindir=$latest_slave->{client_bindir}";
+    }
+    if ( $latest_slave->{client_libdir} ) {
+      $command .= " --client_libdir=$latest_slave->{client_libdir}";
+    }
     if ( $latest_slave->{relay_log_info_type} eq "TABLE" ) {
       $command .=
 " --relay_dir=$latest_slave->{relay_dir} --current_relay_log=$latest_slave->{current_relay_log} ";
@@ -853,6 +865,13 @@ sub generate_diff_from_readpos {
   );
   my $command =
 "apply_diff_relay_logs --command=generate_and_send --scp_user=$target->{ssh_user} --scp_host=$target->{ssh_ip} --latest_mlf=$latest_slave->{Master_Log_File} --latest_rmlp=$latest_slave->{Read_Master_Log_Pos} --target_mlf=$target->{Master_Log_File} --target_rmlp=$target->{Read_Master_Log_Pos} --server_id=$latest_slave->{server_id} --diff_file_readtolatest=$target->{diff_file_readtolatest} --workdir=$latest_slave->{remote_workdir} --timestamp=$_start_datetime --handle_raw_binlog=$target->{handle_raw_binlog} --disable_log_bin=$target->{disable_log_bin} --manager_version=$MHA::ManagerConst::VERSION";
+  if ( $latest_slave->{client_bindir} ) {
+    $command .= " --client_bindir=$latest_slave->{client_bindir}";
+  }
+  if ( $latest_slave->{client_libdir} ) {
+    $command .= " --client_libdir=$latest_slave->{client_libdir}";
+  }
+
   if ( $target->{ssh_port} ne 22 ) {
     $command .= " --scp_port=$target->{ssh_port}";
   }
@@ -1050,6 +1069,12 @@ sub gen_diff_from_exec_to_read {
 
     my $command =
 "save_binary_logs --command=save --start_file=$target->{Relay_Log_File}  --start_pos=$target->{Relay_Log_Pos} --output_file=$target->{relay_from_exectoread} --handle_raw_binlog=$target->{handle_raw_binlog} --disable_log_bin=$target->{disable_log_bin} --manager_version=$MHA::ManagerConst::VERSION";
+    if ( $target->{client_bindir} ) {
+      $command .= " --client_bindir=$target->{client_bindir}";
+    }
+    if ( $target->{client_libdir} ) {
+      $command .= " --client_libdir=$target->{client_libdir}";
+    }
     if ( $target->{relay_log_info_type} eq "TABLE" ) {
       $command .= " --binlog_dir=$target->{relay_dir} ";
     }
@@ -1139,6 +1164,12 @@ sub apply_diff {
   );
   my $command =
 "apply_diff_relay_logs --command=apply --slave_user=$target->{escaped_user} --slave_host=$target->{hostname} --slave_ip=$target->{ip}  --slave_port=$target->{port} --apply_files=$diff_files --workdir=$target->{remote_workdir} --target_version=$target->{mysql_version} --timestamp=$_start_datetime --handle_raw_binlog=$target->{handle_raw_binlog} --disable_log_bin=$target->{disable_log_bin} --manager_version=$MHA::ManagerConst::VERSION";
+  if ( $target->{client_bindir} ) {
+    $command .= " --client_bindir=$target->{client_bindir}";
+  }
+  if ( $target->{client_libdir} ) {
+    $command .= " --client_libdir=$target->{client_libdir}";
+  }
   if ( $target->{log_level} eq "debug" ) {
     $command .= " --debug ";
   }
