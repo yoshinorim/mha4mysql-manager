@@ -12,7 +12,7 @@ unless($expected_hosts) {
 }
 `mk-table-checksum  --databases=test $expected_hosts --count --trim > checksum.log`;
 
-my $checksum_uniq=`cat checksum.log | awk '{print \$7}' | grep -v CHECKSUM | uniq | wc  | awk {'print \$1}'`;
+my $checksum_uniq=`cat checksum.log | awk '{print \$7}' | grep -v CHECKSUM | sort -u | wc  | awk '{print \$1}'`;
 chomp($checksum_uniq);
 
 if($checksum_uniq ne '1') {
