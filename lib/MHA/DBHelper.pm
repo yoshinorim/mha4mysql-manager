@@ -33,12 +33,14 @@ use constant Status => "Status";
 use constant Errstr => "Errstr";
 
 #show master status output
-use constant File             => "File";
-use constant Position         => "Position";
-use constant Binlog_Do_DB     => "Binlog_Do_DB";
-use constant Binlog_Ignore_DB => "Binlog_Ignore_DB";
+use constant File              => "File";
+use constant Position          => "Position";
+use constant Binlog_Do_DB      => "Binlog_Do_DB";
+use constant Binlog_Ignore_DB  => "Binlog_Ignore_DB";
+use constant Executed_Gtid_Set => "Executed_Gtid_Set";
 
 #show slave status output
+use constant Slave_IO_State              => "Slave_IO_State";
 use constant Slave_SQL_Running           => "Slave_SQL_Running";
 use constant Slave_IO_Running            => "Slave_IO_Running";
 use constant Master_Log_File             => "Master_Log_File";
@@ -59,6 +61,7 @@ use constant Relay_Log_Pos               => "Relay_Log_Pos";
 use constant Seconds_Behind_Master       => "Seconds_Behind_Master";
 use constant Last_Errno                  => "Last_Errno";
 use constant Last_Error                  => "Last_Error";
+use constant Retrieved_Gtid_Set          => "Retrieved_Gtid_Set";
 
 use constant Set_Long_Wait_Timeout_SQL => "SET wait_timeout=86400";
 use constant Show_One_Variable_SQL     => "SHOW GLOBAL VARIABLES LIKE ?";
@@ -66,6 +69,10 @@ use constant Change_Master_SQL =>
 "CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
 use constant Change_Master_NoPass_SQL =>
 "CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
+use constant Change_Master_Gtid_SQL =>
+"CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_AUTO_POSITION=1";
+use constant Change_Master_Gtid_NoPass_SQL =>
+"CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_AUTO_POSITION=1";
 use constant Reset_Slave_Master_Host_SQL => "RESET SLAVE /*!50516 ALL */";
 use constant Reset_Slave_SQL             => "RESET SLAVE";
 use constant Change_Master_Clear_SQL     => "CHANGE MASTER TO MASTER_HOST=''";
@@ -89,6 +96,7 @@ use constant Set_MaxAllowedPacket1G_SQL =>
   "SET GLOBAL max_allowed_packet=1*1024*1024*1024";
 use constant Set_MaxAllowedPacket_SQL => "SET GLOBAL max_allowed_packet=%d";
 use constant Is_Readonly_SQL          => "SELECT \@\@global.read_only As Value";
+use constant Has_Gtid_SQL             => "SELECT \@\@global.gtid_mode As Value";
 use constant Get_ServerID_SQL         => "SELECT \@\@global.server_id As Value";
 use constant Unset_Readonly_SQL       => "SET GLOBAL read_only=0";
 use constant Set_Readonly_SQL         => "SET GLOBAL read_only=1";
@@ -110,6 +118,7 @@ sub new {
     dsn           => undef,
     dbh           => undef,
     connection_id => undef,
+    has_gtid      => undef,
     @_,
   };
   return bless $self, $class;
@@ -243,6 +252,16 @@ sub is_read_only($) {
   return $self->get_variable(Is_Readonly_SQL);
 }
 
+sub has_gtid($) {
+  my $self  = shift;
+  my $value = $self->get_variable(Has_Gtid_SQL);
+  if ( defined($value) && $value eq "ON" ) {
+    $self->{has_gtid} = 1;
+    return 1;
+  }
+  return 0;
+}
+
 sub get_basedir($) {
   my $self = shift;
   return $self->get_variable(Get_Basedir_SQL);
@@ -312,15 +331,16 @@ sub show_master_status($) {
   return if ( !defined($ret) || $ret != 1 );
 
   $href = $sth->fetchrow_hashref;
-  for my $key ( File, Position ) {
+  for my $key ( File, Position, Executed_Gtid_Set ) {
     $values{$key} = $href->{$key};
   }
   for my $filter_key ( Binlog_Do_DB, Binlog_Ignore_DB ) {
     $values{$filter_key} = uniq_and_sort( $href->{$filter_key} );
   }
   return (
-    $values{File},         $values{Position},
-    $values{Binlog_Do_DB}, $values{Binlog_Ignore_DB}
+    $values{File}, $values{Position}, $values{Binlog_Do_DB},
+    $values{Binlog_Ignore_DB},
+    $values{Executed_Gtid_Set}
   );
 
 }
@@ -417,6 +437,24 @@ sub change_master($$$$$$$) {
       $master_host,     $master_port, $master_user,
       $master_log_file, $master_log_pos
     );
+  }
+  return $self->execute($query);
+}
+
+sub change_master_gtid($$$$$) {
+  my $self            = shift;
+  my $master_host     = shift;
+  my $master_port     = shift;
+  my $master_user     = shift;
+  my $master_password = shift;
+  my $query;
+  if ($master_password) {
+    $query = sprintf( Change_Master_Gtid_SQL,
+      $master_host, $master_port, $master_user, $master_password );
+  }
+  else {
+    $query = sprintf( Change_Master_Gtid_NoPass_SQL,
+      $master_host, $master_port, $master_user );
   }
   return $self->execute($query);
 }
@@ -530,19 +568,23 @@ sub check_slave_status {
   $href = $sth->fetchrow_hashref;
 
   for my $key (
-    Master_Host,         Master_Port,
-    Master_User,         Slave_IO_Running,
-    Slave_SQL_Running,   Master_Log_File,
-    Read_Master_Log_Pos, Relay_Master_Log_File,
-    Last_Errno,          Last_Error,
-    Exec_Master_Log_Pos, Relay_Log_File,
-    Relay_Log_Pos,       Seconds_Behind_Master
+    Slave_IO_State,        Master_Host,
+    Master_Port,           Master_User,
+    Slave_IO_Running,      Slave_SQL_Running,
+    Master_Log_File,       Read_Master_Log_Pos,
+    Relay_Master_Log_File, Last_Errno,
+    Last_Error,            Exec_Master_Log_Pos,
+    Relay_Log_File,        Relay_Log_Pos,
+    Seconds_Behind_Master, Retrieved_Gtid_Set,
+    Executed_Gtid_Set
     )
   {
     $status{$key} = $href->{$key};
   }
 
-  if ( !$status{Master_Host} || !$status{Master_Log_File} ) {
+  if ( !$status{Master_Host}
+    || !$status{Master_Log_File} )
+  {
     unless ($allow_dummy) {
 
       # I am not a slave
@@ -561,6 +603,11 @@ sub check_slave_status {
   return %status;
 }
 
+sub wait_until_relay_io_log_applied($) {
+  my $self = shift;
+  return read_all_relay_log( $self, 1, 1 );
+}
+
 # wait until slave executes all relay logs.
 # MASTER_LOG_POS() must not be used
 sub wait_until_relay_log_applied($) {
@@ -569,16 +616,21 @@ sub wait_until_relay_log_applied($) {
 }
 
 sub read_all_relay_log($$) {
-  my $self              = shift;
-  my $wait_until_latest = shift;
-  $wait_until_latest = 0 if ( !defined($wait_until_latest) );
+  my $self                 = shift;
+  my $wait_until_latest    = shift;
+  my $io_thread_should_run = shift;
+  $wait_until_latest    = 0 if ( !defined($wait_until_latest) );
+  $io_thread_should_run = 0 if ( !defined($io_thread_should_run) );
+  my $sql_thread_check;
+
   my %status;
   do {
-    %status = $self->check_slave_status();
+    $sql_thread_check = 1;
+    %status           = $self->check_slave_status();
     if ( $status{Status} != 0 ) {
       return %status;
     }
-    elsif ( $status{Slave_IO_Running} eq "Yes" ) {
+    elsif ( !$io_thread_should_run && $status{Slave_IO_Running} eq "Yes" ) {
       $status{Status} = 3;
       $status{Errstr} = "Slave IO thread is running! Check master status.";
       return %status;
@@ -595,21 +647,30 @@ sub read_all_relay_log($$) {
       return %status;
     }
 
-    my $sth = $self->{dbh}->prepare(Show_Processlist_SQL);
-    $sth->execute();
-    while ( my $ref = $sth->fetchrow_hashref ) {
-      my $user  = $ref->{User};
-      my $state = $ref->{State};
-      if (
-           defined($user)
-        && $user eq "system user"
-        && defined($state)
-        && ( $state =~ m/^Has read all relay log/
-          || $state =~ m/^Slave has read all relay log/ )
-        )
+    if ($io_thread_should_run) {
+      if (!$status{Slave_IO_State}
+        || $status{Slave_IO_State} !~ m/Waiting for master to send event/ )
       {
-        $status{Status} = 0;
-        return %status;
+        $sql_thread_check = 0;
+      }
+    }
+    if ($sql_thread_check) {
+      my $sth = $self->{dbh}->prepare(Show_Processlist_SQL);
+      $sth->execute();
+      while ( my $ref = $sth->fetchrow_hashref ) {
+        my $user  = $ref->{User};
+        my $state = $ref->{State};
+        if (
+             defined($user)
+          && $user eq "system user"
+          && defined($state)
+          && ( $state =~ m/^Has read all relay log/
+            || $state =~ m/^Slave has read all relay log/ )
+          )
+        {
+          $status{Status} = 0;
+          return %status;
+        }
       }
     }
   } while ( $wait_until_latest && sleep(1) );

@@ -125,7 +125,7 @@ sub check_master_ssh_env($) {
   else {
     $ssh_reachable = 1;
   }
-  if ($ssh_reachable) {
+  if ( $ssh_reachable && !$target->{has_gtid} ) {
     $_master_node_version =
       MHA::ManagerUtil::get_node_version( $log, $target->{ssh_user},
       $target->{ssh_host}, $target->{ssh_ip}, $target->{ssh_port} );
@@ -344,17 +344,24 @@ sub wait_until_master_is_unreachable() {
     }
     $_server_manager->check_repl_priv();
 
-    MHA::SSHCheck::do_ssh_connection_check( \@alive_servers, $log,
-      $servers_config[0]->{log_level}, $g_workdir )
-      unless ($g_skip_ssh_check);
-    $log->info("Checking MHA Node version..");
-    foreach my $slave (@alive_slaves) {
-      MHA::ManagerUtil::check_node_version(
-        $log,             $slave->{ssh_user}, $slave->{ssh_host},
-        $slave->{ssh_ip}, $slave->{ssh_port}
-      );
+    if ( !$_server_manager->is_gtid_enabled() ) {
+      MHA::SSHCheck::do_ssh_connection_check( \@alive_servers, $log,
+        $servers_config[0]->{log_level}, $g_workdir )
+        unless ($g_skip_ssh_check);
+      $log->info("Checking MHA Node version..");
+      foreach my $slave (@alive_slaves) {
+        MHA::ManagerUtil::check_node_version(
+          $log,             $slave->{ssh_user}, $slave->{ssh_host},
+          $slave->{ssh_ip}, $slave->{ssh_port}
+        );
+      }
+      $log->info(" Version check ok.");
     }
-    $log->info(" Version check ok.");
+    else {
+      $log->info(
+        "GTID is supported. Skipping all SSH and Node package checking.");
+    }
+
     unless ($current_master) {
       $log->info("Getting current master (maybe dead) info ..");
       $current_master = $_server_manager->get_orig_master();
@@ -369,7 +376,9 @@ sub wait_until_master_is_unreachable() {
     $_server_manager->validate_num_alive_servers( $current_master,
       $g_ignore_fail_on_start );
     if ( check_master_ssh_env($current_master) ) {
-      if ( check_master_binlog($current_master) ) {
+      if ( !$_server_manager->is_gtid_enabled()
+        && check_master_binlog($current_master) )
+      {
         $log->error("Master configuration failed.");
         croak;
       }
@@ -377,7 +386,7 @@ sub wait_until_master_is_unreachable() {
     $_status_handler->set_master_host( $current_master->{hostname} )
       unless ($g_check_only);
 
-    if ( check_slave_env() ) {
+    if ( !$_server_manager->is_gtid_enabled() && check_slave_env() ) {
       $log->error("Slave configuration failed.");
       croak;
     }
@@ -400,7 +409,10 @@ sub wait_until_master_is_unreachable() {
   my $master_ping;
   eval {
     my $ssh_check_command;
-    if ( $_master_node_version && $_master_node_version >= 0.53 ) {
+    if (!$_server_manager->is_gtid_enabled()
+      && $_master_node_version
+      && $_master_node_version >= 0.53 )
+    {
       $ssh_check_command = get_binlog_check_command( $current_master, 1 );
     }
     else {

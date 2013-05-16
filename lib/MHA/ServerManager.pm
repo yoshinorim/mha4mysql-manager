@@ -896,6 +896,8 @@ sub read_slave_status($) {
     $_->{Exec_Master_Log_Pos}   = $status{Exec_Master_Log_Pos};
     $_->{Relay_Log_File}        = $status{Relay_Log_File};
     $_->{Relay_Log_Pos}         = $status{Relay_Log_Pos};
+    $_->{Retrieved_Gtid_Set}    = $status{Retrieved_Gtid_Set};
+    $_->{Executed_Gtid_Set}     = $status{Executed_Gtid_Set};
   }
   $log->debug(" Fetching current slave status done.");
 }
@@ -977,6 +979,10 @@ sub identify_latest_slaves($$) {
       $latest[0]{Read_Master_Log_Pos}
     )
   );
+  if ( $latest[0]{Retrieved_Gtid_Set} ) {
+    $log->info(
+      sprintf( "Retrieved Gtid Set: %s", $latest[0]{Retrieved_Gtid_Set} ) );
+  }
   if ($find_oldest) {
     $self->set_oldest_slaves( \@latest );
   }
@@ -1034,6 +1040,24 @@ sub get_oldest_limit_pos($) {
   }
   return ( $target->{Master_Log_File}, $target->{Read_Master_Log_Pos} )
     if ($target);
+}
+
+sub get_most_advanced_latest_slave($) {
+  my $self   = shift;
+  my @latest = $self->get_latest_slaves();
+  my $target;
+  foreach my $slave (@latest) {
+    $target = $slave unless ($target);
+    if (
+      $slave->{Relay_Master_Log_File} gt $target->{Relay_Master_Log_File}
+      || ( $slave->{Relay_Master_Log_File} eq $target->{Relay_Master_Log_File}
+        && $slave->{Exec_Master_Log_Pos} > $target->{Exec_Master_Log_Pos} )
+      )
+    {
+      $target = $slave;
+    }
+  }
+  return $target;
 }
 
 # check slave is too behind master or not
@@ -1212,27 +1236,42 @@ sub get_new_master_binlog_position($$) {
   my $dbhelper = $target->{dbhelper};
   my $log      = $self->{logger};
   $log->info("Getting new master's binlog name and position..");
-  my ( $file, $pos ) = $dbhelper->show_master_status();
+  my ( $file, $pos, $a, $b, $gtid ) = $dbhelper->show_master_status();
   if ( $file && defined($pos) ) {
     $log->info(" $file:$pos");
-    $log->info(
-      sprintf(
+    if ( $self->is_gtid_enabled() ) {
+      $log->info(
+        sprintf(
+" All other slaves should start replication from here. Statement should be: CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_AUTO_POSITION=1, MASTER_USER='%s', MASTER_PASSWORD='xxx';",
+          ( $target->{hostname} eq $target->{ip} )
+          ? $target->{hostname}
+          : ("$target->{hostname} or $target->{ip}"),
+          $target->{port},
+          $target->{repl_user}
+        )
+      );
+
+    }
+    else {
+      $log->info(
+        sprintf(
 " All other slaves should start replication from here. Statement should be: CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d, MASTER_USER='%s', MASTER_PASSWORD='xxx';",
-        ( $target->{hostname} eq $target->{ip} )
-        ? $target->{hostname}
-        : ("$target->{hostname} or $target->{ip}"),
-        $target->{port},
-        $file,
-        $pos,
-        $target->{repl_user}
-      )
-    );
+          ( $target->{hostname} eq $target->{ip} )
+          ? $target->{hostname}
+          : ("$target->{hostname} or $target->{ip}"),
+          $target->{port},
+          $file,
+          $pos,
+          $target->{repl_user}
+        )
+      );
+    }
   }
   else {
     $log->error("Getting new master's binlog position failed!");
     return;
   }
-  return ( $file, $pos );
+  return ( $file, $pos, $gtid );
 }
 
 sub change_master_and_start_slave {
@@ -1249,11 +1288,20 @@ sub change_master_and_start_slave {
   );
   $target->stop_slave($log) unless ( $target->{not_slave} );
   $dbhelper->reset_slave()  unless ( $target->{not_slave} );
-  $dbhelper->change_master( $target->{use_ip_for_change_master}
+  my $addr =
+      $target->{use_ip_for_change_master}
     ? $master->{ip}
-    : $master->{hostname},
-    $master->{port}, $master_log_file, $master_log_pos, $master->{repl_user},
-    $master->{repl_password} );
+    : $master->{hostname};
+
+  if ( $self->is_gtid_enabled() ) {
+    $dbhelper->change_master_gtid( $addr, $master->{port},
+      $master->{repl_user}, $master->{repl_password} );
+  }
+  else {
+    $dbhelper->change_master( $addr,
+      $master->{port}, $master_log_file, $master_log_pos, $master->{repl_user},
+      $master->{repl_password} );
+  }
   $log->info(" Executed CHANGE MASTER.");
 
   # After executing CHANGE MASTER, relay_log_purge is automatically disabled.
@@ -1433,6 +1481,30 @@ sub check_replication_health {
       $log->info(" ok.");
     }
   }
+}
+
+sub is_gtid_enabled($) {
+  my $self    = shift;
+  my @servers = $self->get_alive_servers();
+  return 0 if ( $#servers < 0 );
+  foreach (@servers) {
+    return 0 unless ( $_->{has_gtid} );
+  }
+  return 1;
+}
+
+sub wait_until_in_sync($$$) {
+  my $self     = shift;
+  my $waiter   = shift;
+  my $advanced = shift;
+  my $log      = $self->{logger};
+  my $ret;
+  my ( $file, $pos ) = $advanced->get_binlog_position();
+  $ret = $waiter->master_pos_wait( $file, $pos );
+  if ($ret) {
+    $log->error("Get error on waiting slave");
+  }
+  return $ret;
 }
 
 1;

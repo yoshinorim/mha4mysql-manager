@@ -1229,6 +1229,48 @@ sub recover_slave {
   return 0;
 }
 
+sub recover_master_gtid_internal($$) {
+  my $target       = shift;
+  my $latest_slave = shift;
+  $log->info();
+  $log->info("* Phase 3.3: New Master Recovery Phase..\n");
+  $log->info();
+  $log->info(" Waiting all logs to be applied.. ");
+  my $ret = $target->wait_until_relay_log_applied($log);
+  if ($ret) {
+    $log->error(" Failed with return code $ret");
+    return -1;
+  }
+  $log->info("  done.");
+  $target->stop_slave($log);
+  if ( $target->{id} ne $latest_slave->{id} ) {
+    $log->info(
+      sprintf( " Replicating from the latest slave %s and waiting to apply..",
+        $latest_slave->get_hostinfo() )
+    );
+    $log->info(" Waiting all logs to be applied on the latest slave.. ");
+    $ret = $latest_slave->wait_until_relay_log_applied($log);
+    if ($ret) {
+      $log->error(" Failed with return code $ret");
+      return -1;
+    }
+    $ret =
+      $_server_manager->change_master_and_start_slave( $target, $latest_slave,
+      undef, undef, $log );
+    if ($ret) {
+      $log->error(" Failed with return code $ret");
+      return -1;
+    }
+    $ret = $_server_manager->wait_until_in_sync( $target, $latest_slave );
+    if ($ret) {
+      $log->error(" Failed with return code $ret");
+      return -1;
+    }
+    $log->info("  done.");
+  }
+  return $_server_manager->get_new_master_binlog_position($target);
+}
+
 sub recover_master_internal($$) {
   my $target       = shift;
   my $latest_slave = shift;
@@ -1259,17 +1301,36 @@ sub recover_master($$$) {
   my $new_master        = shift;
   my $latest_base_slave = shift;
 
-  my ( $master_log_file, $master_log_pos ) =
-    recover_master_internal( $new_master, $latest_base_slave );
-  if ( !$master_log_file or !defined($master_log_pos) ) {
-    my $msg = "Recovering master server failed.";
+  my ( $master_log_file, $master_log_pos, $exec_gtid_set );
+  if ( $_server_manager->is_gtid_enabled() ) {
+    ( $master_log_file, $master_log_pos, $exec_gtid_set ) =
+      recover_master_gtid_internal( $new_master, $latest_base_slave );
+    if ( !$exec_gtid_set ) {
+      my $msg = "Recovering master server failed.";
+      $log->error($msg);
+      $mail_body .= $msg . "\n";
+      croak;
+    }
+    $log->info(
+      sprintf(
+        "Master Recovery succeeded. File:Pos:Exec_Gtid_Set: %s, %d, %s",
+        $master_log_file, $master_log_pos, $exec_gtid_set
+      )
+    );
+  }
+  else {
+    ( $master_log_file, $master_log_pos ) =
+      recover_master_internal( $new_master, $latest_base_slave );
+    if ( !$master_log_file or !defined($master_log_pos) ) {
+      my $msg = "Recovering master server failed.";
 
-    # generating diff file failed: try to use other latest server
-    # recoverable error on master: try to recover other master
-    # unrecoverable error on master: destroying the master
-    $log->error($msg);
-    $mail_body .= $msg . "\n";
-    croak;
+      # generating diff file failed: try to use other latest server
+      # recoverable error on master: try to recover other master
+      # unrecoverable error on master: destroying the master
+      $log->error($msg);
+      $mail_body .= $msg . "\n";
+      croak;
+    }
   }
   $mail_body .= "$new_master->{hostname}: OK: Applying all logs succeeded.\n";
 
@@ -1314,6 +1375,107 @@ sub recover_master($$$) {
   $log->info("** Finished master recovery successfully.");
   $mail_subject .= " to $new_master->{hostname}";
   return ( $master_log_file, $master_log_pos );
+}
+
+sub recover_slaves_gtid_internal {
+  my $new_master   = shift;
+  my @alive_slaves = $_server_manager->get_alive_slaves();
+  $log->info();
+  $log->info("* Phase 4.1: Starting Slaves in parallel..\n");
+  $log->info();
+  my $pm                  = new Parallel::ForkManager( $#alive_slaves + 1 );
+  my $slave_starting_fail = 0;
+  $pm->run_on_start(
+    sub {
+      my ( $pid, $target ) = @_;
+      $log->info(
+        sprintf(
+"-- Slave recovery on host %s started, pid: %d. Check tmp log $g_workdir/$target->{hostname}_$target->{port}_$_start_datetime.log if it takes time..",
+          $target->get_hostinfo(), $pid
+        )
+      );
+    }
+  );
+  $pm->run_on_finish(
+    sub {
+      my ( $pid, $exit_code, $target ) = @_;
+      $log->info();
+      $log->info("Log messages from $target->{hostname} ...");
+      my $local_file =
+        "$g_workdir/$target->{hostname}_$target->{port}_$_start_datetime.log";
+      $log->info( "\n" . `cat $local_file` );
+      $log->info("End of log messages from $target->{hostname}.");
+      unlink $local_file;
+
+      if ( $exit_code == 0 ) {
+        $target->{recover_ok} = 1;
+        $log->info(
+          sprintf( "-- Slave on host %s started.", $target->get_hostinfo() ) );
+        $mail_body .=
+"$target->{hostname}: OK: Slave started, replicating from $new_master->{hostname}.\n";
+      }
+      elsif ( $exit_code == 100 ) {
+        $slave_starting_fail = 1;
+        $mail_body .= "$target->{hostname}: ERROR: Starting slave failed.\n";
+      }
+      else {
+        $slave_starting_fail = 1;
+        $log->info(
+          sprintf(
+            "-- Recovery on host %s failed, exit code %d",
+            $target->get_hostinfo(), $exit_code
+          )
+        );
+        $mail_body .= "$target->{hostname}: ERROR: Starting slave failed.\n";
+      }
+    }
+  );
+
+  foreach my $target (@alive_slaves) {
+
+    # master was already recovered
+    next if ( $target->{id} eq $new_master->{id} );
+
+    my $pid = $pm->start($target) and next;
+
+    my $pplog;
+    eval {
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
+      my $local_file =
+        "$g_workdir/$target->{hostname}_$target->{port}_$_start_datetime.log";
+      unlink $local_file;
+      $pplog = Log::Dispatch->new( callbacks => $MHA::ManagerConst::log_fmt );
+      $pplog->add(
+        Log::Dispatch::File->new(
+          name      => 'file',
+          filename  => $local_file,
+          min_level => $target->{log_level},
+          callbacks => $MHA::ManagerConst::add_timestamp,
+          mode      => 'append'
+        )
+      );
+      if (
+        $_server_manager->change_master_and_start_slave(
+          $target, $new_master, undef, undef, $pplog
+        )
+        )
+      {
+        $pm->finish(100);
+      }
+      else {
+        $pm->finish(0);
+      }
+    };
+    if ($@) {
+      $pplog->error($@) if ($pplog);
+      undef $@;
+      $pm->finish(1);
+    }
+  }
+
+  $pm->wait_all_children;
+
+  return ($slave_starting_fail);
 }
 
 sub recover_slaves_internal {
@@ -1529,20 +1691,26 @@ sub recover_slaves($$$$$) {
   my $latest_base_slave = shift;
   my $master_log_file   = shift;
   my $master_log_pos    = shift;
+  my $recover_slave_rc;
 
-  if ( recover_all_slaves_relay_logs( $new_master, $latest_base_slave ) ) {
-    my $msg = "Generating relay diff files from the latest slave failed.";
-    $log->error($msg);
-    $mail_body .= "$msg\n";
+  if ( $_server_manager->is_gtid_enabled() ) {
+    $recover_slave_rc = recover_slaves_gtid_internal($new_master);
   }
   else {
-    my $msg = "Generating relay diff files from the latest slave succeeded.";
-    $log->info($msg);
-    $mail_body .= "$msg\n";
+    if ( recover_all_slaves_relay_logs( $new_master, $latest_base_slave ) ) {
+      my $msg = "Generating relay diff files from the latest slave failed.";
+      $log->error($msg);
+      $mail_body .= "$msg\n";
+    }
+    else {
+      my $msg = "Generating relay diff files from the latest slave succeeded.";
+      $log->info($msg);
+      $mail_body .= "$msg\n";
+    }
+    $recover_slave_rc =
+      recover_slaves_internal( $new_master, $master_log_file, $master_log_pos,
+      $latest_base_slave );
   }
-  my $recover_slave_rc =
-    recover_slaves_internal( $new_master, $master_log_file, $master_log_pos,
-    $latest_base_slave );
   my $reset_slave_rc;
   if ( $recover_slave_rc == 0 ) {
     if ($g_skip_change_master) {
@@ -1667,15 +1835,24 @@ sub do_master_failover {
     $log->info();
     check_set_latest_slaves();
 
-    $log->info();
-    $log->info("* Phase 3.2: Saving Dead Master's Binlog Phase..\n");
-    $log->info();
-    save_master_binlog($dead_master);
+    if ( !$_server_manager->is_gtid_enabled() ) {
+      $log->info();
+      $log->info("* Phase 3.2: Saving Dead Master's Binlog Phase..\n");
+      $log->info();
+      save_master_binlog($dead_master);
+    }
 
     $log->info();
     $log->info("* Phase 3.3: Determining New Master Phase..\n");
     $log->info();
-    my $latest_base_slave = find_latest_base_slave($dead_master);
+
+    my $latest_base_slave;
+    if ( $_server_manager->is_gtid_enabled() ) {
+      $latest_base_slave = $_server_manager->get_most_advanced_latest_slave();
+    }
+    else {
+      $latest_base_slave = find_latest_base_slave($dead_master);
+    }
     $new_master = select_new_master( $dead_master, $latest_base_slave );
     my ( $master_log_file, $master_log_pos ) =
       recover_master( $dead_master, $new_master, $latest_base_slave );
