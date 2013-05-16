@@ -35,7 +35,7 @@ export CLIENT_BINDIR=""
 export CLIENT_LIBDIR=""
 if [ "A$CUSTOM_CLIENTS" = "Ayes" ]; then
   export CLIENT_BINDIR="client_bindir=/opt/mysql/$VERSION/bin"
-  export CLIENT_LIBDIR="client_libdir=/opt/mysql/$VERSION/lib/mysql"
+#  export CLIENT_LIBDIR="client_libdir=/opt/mysql/$VERSION/lib/mysql"
 elif [ "A$CUSTOM_CLIENTS" = "Abad" ]; then
   export CLIENT_BINDIR="client_bindir=/opt/mysql/$VERSION"
   export CLIENT_LIBDIR="client_libdir=/opt/mysql/$VERSION"
