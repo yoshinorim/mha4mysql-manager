@@ -285,6 +285,8 @@ sub reject_update($$) {
   if ( $new_master->{master_ip_online_change_script} ) {
     my $command =
 "$orig_master->{master_ip_online_change_script} --command=stop --orig_master_host=$orig_master->{hostname} --orig_master_ip=$orig_master->{ip} --orig_master_port=$orig_master->{port} --orig_master_user=$orig_master->{escaped_user} --orig_master_password=$orig_master->{escaped_password} --new_master_host=$new_master->{hostname} --new_master_ip=$new_master->{ip} --new_master_port=$new_master->{port} --new_master_user=$new_master->{escaped_user} --new_master_password=$new_master->{escaped_password}";
+    $command .= " --orig_master_ssh_user=$orig_master->{ssh_user}";
+    $command .= " --new_master_ssh_user=$new_master->{ssh_user}";
     $command .= $orig_master->get_ssh_args_if( 1, "orig", 1 );
     $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
     $log->info(
@@ -292,6 +294,7 @@ sub reject_update($$) {
     );
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system($command);
+
     if ( $high == 0 && $low == 0 ) {
       $log->info(" ok.");
     }
@@ -394,6 +397,8 @@ sub switch_master($$$$) {
   if ( $new_master->{master_ip_online_change_script} ) {
     my $command =
 "$new_master->{master_ip_online_change_script} --command=start --orig_master_host=$orig_master->{hostname} --orig_master_ip=$orig_master->{ip} --orig_master_port=$orig_master->{port} --orig_master_user=$orig_master->{escaped_user} --orig_master_password=$orig_master->{escaped_password} --new_master_host=$new_master->{hostname} --new_master_ip=$new_master->{ip} --new_master_port=$new_master->{port} --new_master_user=$new_master->{escaped_user} --new_master_password=$new_master->{escaped_password}";
+    $command .= " --orig_master_ssh_user=$orig_master->{ssh_user}";
+    $command .= " --new_master_ssh_user=$new_master->{ssh_user}";
     $command .= $orig_master->get_ssh_args_if( 1, "orig", 1 );
     $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
     $log->info(
@@ -401,6 +406,7 @@ sub switch_master($$$$) {
     );
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system($command);
+
     if ( $high == 0 && $low == 0 ) {
       $log->info(" ok.");
     }
