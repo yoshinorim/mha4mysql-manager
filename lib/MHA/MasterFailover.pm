@@ -894,8 +894,8 @@ sub generate_diff_from_readpos {
     $command .= " --ssh_options='$MHA::NodeConst::SSH_OPT_ALIVE' ";
   }
   $logger->info("Executing command: $command");
-  return exec_ssh_child_cmd( $ssh_user_host, $target->{ssh_port}, $command,
-    $logger, "$g_workdir/$target->{hostname}_$target->{port}.work" );
+  return exec_ssh_child_cmd( $ssh_user_host, $latest_slave->{ssh_port}, $command,
+    $logger, "$g_workdir/$latest_slave->{hostname}_$latest_slave->{port}.work" );
 }
 
 # 0: no need to generate diff
