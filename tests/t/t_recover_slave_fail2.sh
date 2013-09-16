@@ -1,4 +1,6 @@
 . ./init.sh
+skip_if_gtid $0
+
 mysql $S3 -e "stop slave io_thread"
 mysql $S4 -e "stop slave io_thread"
 

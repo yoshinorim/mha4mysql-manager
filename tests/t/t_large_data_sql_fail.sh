@@ -1,5 +1,6 @@
 . ./init.sh
 
+skip_if_gtid $0
 # commits every 1000 rows
 # sql thread stops normally (simulating offline backup job)
 

@@ -1,4 +1,5 @@
 . ./init.sh
+skip_if_gtid $0
 mysql $S1 -e "stop slave io_thread"
 mysql $M test -e "insert into t1 values(2, 200, 'aaaaaa')"
 sleep 2

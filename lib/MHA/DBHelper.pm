@@ -28,6 +28,7 @@ use MHA::ManagerConst;
 use Carp qw(croak);
 use DBI;
 use Data::Dumper;
+use Log::Dispatch;
 
 use constant Status => "Status";
 use constant Errstr => "Errstr";
@@ -90,6 +91,8 @@ use constant Start_SQL_Thread_SQL   => "START SLAVE SQL_THREAD";
 use constant Stop_SQL_Thread_SQL    => "STOP SLAVE SQL_THREAD";
 use constant Get_Basedir_SQL        => "SELECT \@\@global.basedir AS Value";
 use constant Get_Datadir_SQL        => "SELECT \@\@global.datadir AS Value";
+use constant Get_Num_Workers_SQL =>
+  "SELECT \@\@global.slave_parallel_workers AS Value";
 use constant Get_MaxAllowedPacket_SQL =>
   "SELECT \@\@global.max_allowed_packet AS Value";
 use constant Set_MaxAllowedPacket1G_SQL =>
@@ -105,6 +108,8 @@ use constant Set_Log_Bin_Local_SQL    => "SET sql_log_bin=1";
 use constant Rename_User_SQL          => "RENAME USER '%s'\@'%%' TO '%s'\@'%%'";
 use constant Master_Pos_Wait_NoTimeout_SQL =>
   "SELECT MASTER_POS_WAIT(?,?,0) AS Result";
+use constant Gtid_Wait_NoTimeout_SQL =>
+  "SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,0) AS Result";
 use constant Get_Connection_Id_SQL  => "SELECT CONNECTION_ID() AS Value";
 use constant Flush_Tables_Nolog_SQL => "FLUSH NO_WRITE_TO_BINLOG TABLES";
 use constant Flush_Tables_With_Read_Lock_SQL => "FLUSH TABLES WITH READ LOCK";
@@ -270,6 +275,11 @@ sub get_basedir($) {
 sub get_datadir($) {
   my $self = shift;
   return $self->get_variable(Get_Datadir_SQL);
+}
+
+sub get_num_workers($) {
+  my $self = shift;
+  return $self->get_variable(Get_Num_Workers_SQL);
 }
 
 sub get_version($) {
@@ -603,20 +613,26 @@ sub check_slave_status {
   return %status;
 }
 
-sub wait_until_relay_io_log_applied($) {
-  my $self = shift;
-  return read_all_relay_log( $self, 1, 1 );
+sub wait_until_relay_io_log_applied($$$) {
+  my $self               = shift;
+  my $log                = shift;
+  my $num_worker_threads = shift;
+  return read_all_relay_log( $self, $log, $num_worker_threads, 1, 1 );
 }
 
 # wait until slave executes all relay logs.
 # MASTER_LOG_POS() must not be used
-sub wait_until_relay_log_applied($) {
-  my $self = shift;
-  return read_all_relay_log( $self, 1 );
+sub wait_until_relay_log_applied($$$) {
+  my $self               = shift;
+  my $log                = shift;
+  my $num_worker_threads = shift;
+  return read_all_relay_log( $self, $log, $num_worker_threads, 1 );
 }
 
-sub read_all_relay_log($$) {
+sub read_all_relay_log {
   my $self                 = shift;
+  my $log                  = shift;
+  my $num_worker_threads   = shift;
   my $wait_until_latest    = shift;
   my $io_thread_should_run = shift;
   $wait_until_latest    = 0 if ( !defined($wait_until_latest) );
@@ -655,23 +671,50 @@ sub read_all_relay_log($$) {
       }
     }
     if ($sql_thread_check) {
-      my $sth = $self->{dbh}->prepare(Show_Processlist_SQL);
+      my $sql_thread_done    = 0;
+      my $worker_thread_done = 0;
+      my $current_workers    = 0;
+      my $sth                = $self->{dbh}->prepare(Show_Processlist_SQL);
       $sth->execute();
       while ( my $ref = $sth->fetchrow_hashref ) {
         my $user  = $ref->{User};
         my $state = $ref->{State};
-        if (
-             defined($user)
+        if ( defined($user)
           && $user eq "system user"
-          && defined($state)
-          && ( $state =~ m/^Has read all relay log/
-            || $state =~ m/^Slave has read all relay log/ )
-          )
+          && defined($state) )
         {
-          $status{Status} = 0;
-          return %status;
+          if ( $state =~ m/^Has read all relay log/
+            || $state =~ m/^Slave has read all relay log/ )
+          {
+            $sql_thread_done = 1;
+            if ( $num_worker_threads == 0 ) {
+              $worker_thread_done = 1;
+            }
+            if ($worker_thread_done) {
+              last;
+            }
+          }
+          elsif ( $state =~ m/^Waiting for an event from Coordinator/ ) {
+            $current_workers++;
+            if ( $current_workers >= $num_worker_threads ) {
+              $worker_thread_done = 1;
+            }
+          }
+        }
+        if ( $worker_thread_done == 1 && $sql_thread_done == 1 ) {
+          last;
         }
       }
+      if ( $sql_thread_done == 1 && $worker_thread_done == 1 ) {
+        $status{Status} = 0;
+        return %status;
+      }
+      $log->debug(
+        sprintf(
+          "Sql Thread Done: %d, Worker Thread done: %d, Ended workers: %d",
+          $sql_thread_done, $worker_thread_done, $current_workers
+        )
+      );
     }
   } while ( $wait_until_latest && sleep(1) );
 
@@ -800,6 +843,15 @@ sub master_pos_wait($$$) {
   my $binlog_pos  = shift;
   my $sth         = $self->{dbh}->prepare(Master_Pos_Wait_NoTimeout_SQL);
   $sth->execute( $binlog_file, $binlog_pos );
+  my $href = $sth->fetchrow_hashref;
+  return $href->{Result};
+}
+
+sub gtid_wait($$) {
+  my $self      = shift;
+  my $exec_gtid = shift;
+  my $sth       = $self->{dbh}->prepare(Gtid_Wait_NoTimeout_SQL);
+  $sth->execute($exec_gtid);
   my $href = $sth->fetchrow_hashref;
   return $href->{Result};
 }

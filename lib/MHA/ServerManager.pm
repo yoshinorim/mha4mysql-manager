@@ -480,7 +480,7 @@ sub validate_slaves($$$) {
         sprintf( " read_only=1 is not set on slave %s.\n", $_->get_hostinfo() )
       );
     }
-    if ( $_->{relay_purge} ne '0' ) {
+    if ( $_->{relay_purge} ne '0' && !$_->{has_gtid} ) {
       $log->warning(
         sprintf( " relay_log_purge=0 is not set on slave %s.\n",
           $_->get_hostinfo() )
@@ -1306,8 +1306,10 @@ sub change_master_and_start_slave {
 
   # After executing CHANGE MASTER, relay_log_purge is automatically disabled.
   # If the original value is 0, we should turn to 0 explicitly.
-  unless ( $target->{relay_purge} ) {
-    $target->disable_relay_log_purge();
+  if ( !$target->{has_gtid} ) {
+    unless ( $target->{relay_purge} ) {
+      $target->disable_relay_log_purge();
+    }
   }
   my $ret = $target->start_slave($log);
   unless ($ret) {

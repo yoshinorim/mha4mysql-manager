@@ -1,4 +1,6 @@
 . ./init.sh
+skip_if_gtid $0
+
 mysql $S1 -e "SET GLOBAL read_only=1"
 ./kill_m.sh
 ./run.sh --skip_change_master --skip_disable_read_only

@@ -147,7 +147,8 @@ sub read_conf($) {
     globalfile => $self->{global_conf},
     file       => $self->{conf},
   );
-  my @sc = $conf->read_config();
+  my ( $sc_ref, undef ) = $conf->read_config();
+  my @sc = @$sc_ref;
   $self->{status_dir} = $sc[0]->{manager_workdir}
     unless ( $self->{status_dir} );
   $self->{logfile} = $sc[0]->{manager_log};

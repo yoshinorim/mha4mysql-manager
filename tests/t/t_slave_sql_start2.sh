@@ -1,4 +1,5 @@
 . ./init.sh
+skip_if_gtid $0
 
 # S1 SQL thread stops with error
 mysql $S1 test -e "insert into t1 values (100, 100, 100)"

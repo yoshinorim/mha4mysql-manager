@@ -14,7 +14,7 @@ mysql $S1 test -e "insert into t1 values(4, 200, 'aaaaaa')"
 ./run.sh
 
 fail_if_zero $0 $?
-check_master $0 $S1P $MP
+#check_master $0 $S1P $MP
 check_master $0 $S2P $MP
 check_master $0 $S3P $MP
 check_master $0 $S4P $MP

@@ -2,6 +2,7 @@
 
 mysql $M test -e "insert into t1 values(2, 200, 'aaaaaa')"
 sleep 1
+mysql $S1 -e "reset master"
 mysql $S2 -e "stop slave"
 mysql $S2 -e "change master to master_host='127.0.0.1', master_port=$S1P, master_user='rsandbox', master_password='rsandbox', master_log_file='mysql-bin.000001', master_log_pos=4"
 mysql $S2 -e "start slave"

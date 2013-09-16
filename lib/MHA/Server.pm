@@ -231,36 +231,20 @@ sub connect_and_get_status {
     $self->{Binlog_Ignore_DB} = $binlog_ignore_db;
   }
 
-  $self->{relay_log_info_type} =
-    $dbhelper->get_relay_log_info_type( $self->{mysql_version} );
-  if ( $self->{relay_log_info_type} eq "TABLE" ) {
-    my ( $relay_dir, $current_relay_log ) =
-      MHA::SlaveUtil::get_relay_dir_file_from_table($dbh);
-    $self->{relay_dir}         = $relay_dir;
-    $self->{current_relay_log} = $current_relay_log;
-    if ( !$relay_dir || !$current_relay_log ) {
-      $log->error(
-        sprintf(
-" Getting relay log directory or current relay logfile from replication table failed on %s!",
-          $self->get_hostinfo() )
-      );
-      croak;
-    }
+  $self->{datadir} = $dbhelper->get_datadir();
+
+  if ( $self->version_ge("5.6.0") ) {
+    $self->{num_slave_workers} = $dbhelper->get_num_workers();
   }
   else {
-    my $relay_log_info =
-      $dbhelper->get_relay_log_info_path( $self->{mysql_version} );
-    $self->{relay_log_info} = $relay_log_info;
-
-    unless ($relay_log_info) {
-      $log->error(
-        sprintf( " Getting relay_log_info failed on %s!",
-          $self->get_hostinfo() )
-      );
-      croak;
-    }
-    $self->{datadir} = $dbhelper->get_datadir();
+    $self->{num_slave_workers} = 0;
   }
+  $log->debug(
+    sprintf(
+      " Number of slave worker threads on host %s: %d\n",
+      $self->get_hostinfo(), $self->{num_slave_workers}
+    )
+  );
 
   my %status = $dbhelper->check_slave_status();
   $read_only   = $dbhelper->is_read_only();
@@ -311,6 +295,36 @@ sub connect_and_get_status {
     $self->{Replicate_Ignore_Table}      = $status{Replicate_Ignore_Table};
     $self->{Replicate_Wild_Do_Table}     = $status{Replicate_Wild_Do_Table};
     $self->{Replicate_Wild_Ignore_Table} = $status{Replicate_Wild_Ignore_Table};
+
+    $self->{relay_log_info_type} =
+      $dbhelper->get_relay_log_info_type( $self->{mysql_version} );
+    if ( $self->{relay_log_info_type} eq "TABLE" ) {
+      my ( $relay_dir, $current_relay_log ) =
+        MHA::SlaveUtil::get_relay_dir_file_from_table($dbh);
+      $self->{relay_dir}         = $relay_dir;
+      $self->{current_relay_log} = $current_relay_log;
+      if ( !$relay_dir || !$current_relay_log ) {
+        $log->error(
+          sprintf(
+" Getting relay log directory or current relay logfile from replication table failed on %s!",
+            $self->get_hostinfo() )
+        );
+        croak;
+      }
+    }
+    else {
+      my $relay_log_info =
+        $dbhelper->get_relay_log_info_path( $self->{mysql_version} );
+      $self->{relay_log_info} = $relay_log_info;
+
+      unless ($relay_log_info) {
+        $log->error(
+          sprintf( " Getting relay_log_info failed on %s!",
+            $self->get_hostinfo() )
+        );
+        croak;
+      }
+    }
   }
   return $self;
 }
@@ -524,7 +538,8 @@ sub wait_until_relay_log_applied {
   my $log  = shift;
   $log = $self->{logger} unless ($log);
   my $dbhelper = $self->{dbhelper};
-  my %status   = $dbhelper->wait_until_relay_log_applied();
+  my %status =
+    $dbhelper->wait_until_relay_log_applied( $log, $self->{num_slave_workers} );
   if ( $status{Status} ) {
     my $msg =
       sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
@@ -539,7 +554,9 @@ sub wait_until_relay_io_log_applied {
   my $log  = shift;
   $log = $self->{logger} unless ($log);
   my $dbhelper = $self->{dbhelper};
-  my %status   = $dbhelper->wait_until_relay_io_log_applied();
+  my %status =
+    $dbhelper->wait_until_relay_io_log_applied( $log,
+    $self->{num_slave_workers} );
   if ( $status{Status} ) {
     my $msg =
       sprintf( "Checking slave status failed on %s.", $self->get_hostinfo() );
@@ -945,6 +962,40 @@ sub start_sql_thread_if {
   }
   $log->info("  done.");
   return 0;
+}
+
+sub gtid_wait {
+  my ( $self, $exec_gtid, $log ) = @_;
+  $log = $self->{logger} unless ($log);
+  my $dbhelper = $self->{dbhelper};
+  my $res      = $dbhelper->gtid_wait($exec_gtid);
+  if ( !defined($res) ) {
+    $log->error(
+      sprintf(
+        "gtid_wait(%s) returned NULL on %s. Maybe SQL thread was aborted?",
+        $exec_gtid, $self->get_hostinfo()
+      )
+    );
+    return 1;
+  }
+  if ( $res >= 0 ) {
+    $log->info(
+      sprintf(
+        " gtid_wait(%s) completed on %s. Executed %d events.",
+        $exec_gtid, $self->get_hostinfo(), $res
+      )
+    );
+    return 0;
+  }
+  else {
+    $log->error(
+      sprintf(
+        "gtid_wait(%s) got error on %s: $res",
+        $exec_gtid, $self->get_hostinfo()
+      )
+    );
+    return 1;
+  }
 }
 
 sub master_pos_wait_internal {

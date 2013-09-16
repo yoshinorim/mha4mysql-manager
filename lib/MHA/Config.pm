@@ -295,12 +295,15 @@ sub parse_server {
 
   # set escaped_user and escaped_password
   foreach my $key ( 'user', 'password' ) {
-    my $new_key = "escaped_" . $key;
+    my $new_key       = "escaped_" . $key;
+    my $new_mysql_key = "mysql_escaped_" . $key;
     if ( $server->{$key} ) {
       $server->{$new_key} = MHA::NodeUtil::escape_for_shell( $server->{$key} );
+      $server->{$new_mysql_key} =
+        MHA::NodeUtil::escape_for_mysql_command( $server->{$key} );
     }
     else {
-      $server->{$new_key} = "";
+      $server->{$new_key} = $server->{$new_mysql_key} = "";
     }
   }
   return $server;
@@ -320,6 +323,7 @@ sub read_config($) {
   my $self              = shift;
   my $log               = $self->{logger};
   my @servers           = ();
+  my @binlog_servers    = ();
   my $global_configfile = $self->{globalfile};
   my $configfile        = $self->{file};
   my $sd;
@@ -366,7 +370,7 @@ sub read_config($) {
   my @blocks = sort keys(%$cfg);
   foreach my $block (@blocks) {
     next if ( $block eq "server default" );
-    if ( $block !~ /^server\S+/ ) {
+    if ( $block !~ /^server\S+/ && $block !~ /^binlog\S+/ ) {
       my $msg =
 "Block name \"$block\" is invalid. Block name must be \"server default\" or start from \"server\"(+ non-whitespace characters).";
       $log->error($msg) if ($log);
@@ -374,7 +378,12 @@ sub read_config($) {
     }
     my $server = $self->parse_server( $cfg->{$block}, $sd );
     $server->{id} = $block;
-    push( @servers, $server );
+    if ( $block =~ /^server\S+/ ) {
+      push( @servers, $server );
+    }
+    elsif ( $block =~ /^binlog\S+/ ) {
+      push( @binlog_servers, $server );
+    }
   }
   my @tmp;
   foreach (@servers) {
@@ -422,7 +431,7 @@ sub read_config($) {
     }
   }
 
-  return @servers;
+  return ( \@servers, \@binlog_servers );
 }
 
 sub parse_server_default {

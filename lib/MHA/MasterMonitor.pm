@@ -261,11 +261,12 @@ sub wait_until_master_is_unreachable() {
       $log->error("Configuration file $g_config_file not found!");
       croak;
     }
-    @servers_config = new MHA::Config(
+    my ( $sc_ref, $binlog_ref ) = new MHA::Config(
       logger     => $log,
       globalfile => $g_global_config_file,
       file       => $g_config_file
     )->read_config();
+    @servers_config = @$sc_ref;
 
     if ( !$g_logfile && !$g_check_only && $servers_config[0]->{manager_log} ) {
       $g_logfile = $servers_config[0]->{manager_log};
@@ -524,7 +525,8 @@ sub wait_until_master_is_dead {
       file       => $g_config_file
     );
 
-    my @servers_config = $conf->read_config();
+    my ( $sc_ref, $binlog_ref ) = $conf->read_config();
+    my @servers_config = @$sc_ref;
     $_server_manager = new MHA::ServerManager( servers => \@servers_config );
     $_server_manager->set_logger($log);
     $log->debug(

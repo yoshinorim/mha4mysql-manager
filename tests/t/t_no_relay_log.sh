@@ -1,4 +1,6 @@
 . ./init.sh
+skip_if_gtid $0
+
 
 # Needs to apply lots of relay log files
 # Relay log files switched many times while master binary log was not switched because max_relay_log_size is so small. In this case, each relay log does not contain a Rotate Event. This test case is to check recover works without rotate event.

@@ -145,7 +145,8 @@ sub main {
     globalfile => $g_global_config_file,
     file       => $g_config_file
   );
-  my @servers_config = $conf->read_config();
+  my ( $sc_ref, undef ) = $conf->read_config();
+  my @servers_config = @$sc_ref;
   $log = MHA::ManagerUtil::init_log( undef, "debug" );
   return do_ssh_connection_check( \@servers_config, $log, "debug", "/tmp" );
 }

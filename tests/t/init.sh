@@ -14,8 +14,11 @@ done
 
 $SANDBOX_HOME/send_kill_all  > bootstrap.log 2>&1
 $SANDBOX_HOME/clear_all  > bootstrap.log 2>&1
+export MYSQL_USER=""
+export MYSQL_PWD=""
 make_replication_sandbox --how_many_slaves=4 --upper_directory=$SANDBOX_HOME --sandbox_base_port=$MP  $VERSION >> bootstrap.log 2>&1
-
+export MYSQL_USER=root
+export MYSQL_PWD=msandbox
 if [ "A$INIT_SCRIPT" != "A" ]; then
   eval $INIT_SCRIPT
 fi
@@ -26,6 +29,10 @@ rm -f /var/tmp/mha_test*
 
 mysql $M -e "source grant.sql"
 mysql $M -e "source grant_nopass.sql"
+mysql $S1 -e "source grant_nopass.sql"
+mysql $S2 -e "source grant_nopass.sql"
+mysql $S3 -e "source grant_nopass.sql"
+mysql $S4 -e "source grant_nopass.sql"
 mysql $M test -e "create table t1 (id int primary key, value int, value2 text) engine=innodb; insert into t1 values(1, 100, 'abc');"
 
 wait_until_count $0 $S1P 1

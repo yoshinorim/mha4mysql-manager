@@ -53,6 +53,7 @@ my $g_skip_save_master_binlog;
 my $g_remove_dead_master_conf;
 my $g_skip_change_master;
 my $g_skip_disable_read_only;
+my $g_wait_until_gtid_in_sync = 1;
 my $_real_ssh_reachable;
 my $_saved_file_suffix;
 my $_start_datetime;
@@ -96,14 +97,62 @@ sub exec_ssh_child_cmd {
   return ( $high, $low );
 }
 
+sub init_binlog_server {
+  my $binlog_server_ref        = shift;
+  my @binlog_servers           = @$binlog_server_ref;
+  my $num_alive_binlog_servers = 0;
+  foreach my $server (@binlog_servers) {
+    unless ( $server->{logger} ) {
+      $server->{logger} = $log;
+    }
+
+    if (
+      MHA::HealthCheck::ssh_check_simple(
+        $server->{ssh_user}, $server->{ssh_host},
+        $server->{ssh_ip},   $server->{ssh_port},
+        $server->{logger},   $server->{ssh_connection_timeout}
+      )
+      )
+    {
+      $log->warning("Failed to SSH to binlog server $server->{hostname}");
+      $server->{ssh_reachable} = 0;
+    }
+    else {
+      if (
+        MHA::ManagerUtil::get_node_version(
+          $server->{logger}, $server->{ssh_user}, $server->{ssh_host},
+          $server->{ssh_ip}, $server->{ssh_port}
+        )
+        )
+      {
+        $log->info("Binlog server $server->{hostname} is reachable.");
+        $server->{ssh_reachable} = 1;
+        $num_alive_binlog_servers++;
+      }
+      else {
+        $log->warning(
+"Failed to get MHA Node version from binlog server $server->{hostname}"
+        );
+        $server->{ssh_reachable} = 0;
+      }
+    }
+  }
+  if ( $#binlog_servers >= 0 && $num_alive_binlog_servers <= 0 ) {
+    $log->error("Binlog Server is defined but there is no alive server.");
+    croak;
+  }
+}
+
 sub init_config() {
   $log = MHA::ManagerUtil::init_log($g_logfile);
 
-  my @servers_config = new MHA::Config(
+  my ( $sc_ref, $binlog_ref ) = new MHA::Config(
     logger     => $log,
     globalfile => $g_global_config_file,
     file       => $g_config_file
   )->read_config();
+  my @servers_config        = @$sc_ref;
+  my @binlog_servers_config = @$binlog_ref;
 
   if ( !$g_logfile
     && !$g_interactive
@@ -123,7 +172,7 @@ sub init_config() {
       $g_workdir = "/var/tmp";
     }
   }
-  return @servers_config;
+  return ( \@servers_config, \@binlog_servers_config );
 }
 
 sub check_settings($) {
@@ -507,6 +556,158 @@ sub check_set_latest_slaves {
   $_server_manager->identify_oldest_slaves();
   $log->info("Oldest slaves:");
   $_server_manager->print_oldest_slaves();
+}
+
+sub save_from_binlog_server {
+  my $relay_master_log_file = shift;
+  my $exec_master_log_pos   = shift;
+  my $binlog_server_ref     = shift;
+  my @binlog_servers        = @$binlog_server_ref;
+  my $max_saved_binlog_size = 0;
+
+  my $pm = new Parallel::ForkManager( $#binlog_servers + 1 );
+  $pm->run_on_start(
+    sub {
+      my ( $pid, $target ) = @_;
+      $log->info(
+        sprintf(
+          "-- Saving binlog from host %s started, pid: %d",
+          $target->{hostname}, $pid
+        )
+      );
+    }
+  );
+
+  $pm->run_on_finish(
+    sub {
+      my ( $pid, $exit_code, $target ) = @_;
+      $log->info();
+      $log->info("Log messages from $target->{hostname} ...");
+      my $saved_binlog =
+"$g_workdir/saved_binlog_$target->{hostname}_$target->{id}_$_start_datetime.binlog";
+      my $local_file =
+"$g_workdir/saved_binlog_$target->{hostname}_$target->{id}_$_start_datetime.log";
+      if ( -f $local_file ) {
+        $log->info( "\n" . `cat $local_file` );
+        unlink $local_file;
+      }
+      $log->info("End of log messages from $target->{hostname}.");
+      if ( $exit_code == 0 ) {
+        if ( -f $saved_binlog ) {
+          my $saved_binlog_size = -s $saved_binlog;
+          $log->info(
+"Saved mysqlbinlog size from $target->{hostname} is $saved_binlog_size bytes."
+          );
+          if ( $saved_binlog_size > $max_saved_binlog_size ) {
+            $_diff_binary_log      = $saved_binlog;
+            $max_saved_binlog_size = $saved_binlog_size;
+          }
+        }
+      }
+      elsif ( $exit_code == 2 ) {
+        $log->info("SSH is not reachable on $target->{hostname}. Skipping");
+      }
+      elsif ( $exit_code == 10 ) {
+        $log->info("No binlog events found from $target->{hostname}. Skipping");
+      }
+      else {
+        $log->warning("Got error from $target->{hostname}.");
+      }
+    }
+  );
+
+  foreach my $target (@binlog_servers) {
+    my $pid = $pm->start($target) and next;
+    my $pplog;
+    eval {
+      $pm->finish(2) unless ( $target->{ssh_reachable} );
+      $SIG{INT} = $SIG{HUP} = $SIG{QUIT} = $SIG{TERM} = "DEFAULT";
+      my $saved_binlog =
+"$g_workdir/saved_binlog_$target->{hostname}_$target->{id}_$_start_datetime.binlog";
+      my $saved_binlog_remote =
+"$target->{remote_workdir}/saved_binlog_$target->{id}_$_start_datetime.binlog";
+      my $local_file =
+"$g_workdir/saved_binlog_$target->{hostname}_$target->{id}_$_start_datetime.log";
+      if ( -f $local_file ) {
+        unlink $local_file;
+      }
+      $pplog = Log::Dispatch->new( callbacks => $MHA::ManagerConst::log_fmt );
+      $pplog->add(
+        Log::Dispatch::File->new(
+          name      => 'file',
+          filename  => $local_file,
+          min_level => $target->{log_level},
+          callbacks => $MHA::ManagerConst::add_timestamp,
+          mode      => 'append'
+        )
+      );
+      $pplog->info(
+        "Fetching binary logs from binlog server $target->{hostname}..");
+      my $command =
+"save_binary_logs --command=save --start_file=$relay_master_log_file  --start_pos=$exec_master_log_pos --output_file=$saved_binlog_remote --handle_raw_binlog=0 --skip_filter=1 --disable_log_bin=0 --manager_version=$MHA::ManagerConst::VERSION";
+      if ( $target->{client_bindir} ) {
+        $command .= " --client_bindir=$target->{client_bindir}";
+      }
+      if ( $target->{client_libdir} ) {
+        $command .= " --client_libdir=$target->{client_libdir}";
+      }
+      my $oldest_version = $_server_manager->get_oldest_version();
+      $command .= " --oldest_version=$oldest_version ";
+      if ( $target->{log_level} eq "debug" ) {
+        $command .= " --debug ";
+      }
+      $command .= " --binlog_dir=$target->{master_binlog_dir} ";
+      $pplog->info("Executing binlog save command: $command");
+      my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_ip};
+      my ( $high, $low ) =
+        MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $target->{ssh_port},
+        $command, $local_file );
+      if ( $high == 0 && $low == 0 ) {
+        if (
+          MHA::NodeUtil::file_copy(
+            0,                   $saved_binlog,     $saved_binlog_remote,
+            $target->{ssh_user}, $target->{ssh_ip}, $local_file,
+            $target->{ssh_port}
+          )
+          )
+        {
+          $pplog->error(
+"scp from $ssh_user_host:$saved_binlog_remote to local:$saved_binlog failed!"
+          );
+          croak;
+        }
+        else {
+          $pplog->info(
+"scp from $ssh_user_host:$saved_binlog_remote to local:$saved_binlog succeeded."
+          );
+          $pm->finish(0);
+        }
+      }
+      elsif ( $high == 10 && $low == 0 ) {
+        $pplog->info(
+"Additional events were not found from the binlog server. No need to save."
+        );
+        $pm->finish(10);
+      }
+      else {
+        $pplog->error(
+"Failed to save binary log events from the binlog server. Maybe disks on binary logs are not accessible or binary log itself is corrupt?"
+        );
+      }
+    };
+    if ($@) {
+      $pplog->error($@) if ($pplog);
+      undef $@;
+    }
+    $pm->finish(1);
+  }
+  $pm->wait_all_children;
+  if ($_diff_binary_log) {
+    return 1;
+  }
+  else {
+    return 0;
+  }
 }
 
 sub save_master_binlog_internal {
@@ -894,8 +1095,9 @@ sub generate_diff_from_readpos {
     $command .= " --ssh_options='$MHA::NodeConst::SSH_OPT_ALIVE' ";
   }
   $logger->info("Executing command: $command");
-  return exec_ssh_child_cmd( $ssh_user_host, $latest_slave->{ssh_port}, $command,
-    $logger, "$g_workdir/$latest_slave->{hostname}_$latest_slave->{port}.work" );
+  return exec_ssh_child_cmd( $ssh_user_host, $latest_slave->{ssh_port},
+    $command, $logger,
+    "$g_workdir/$latest_slave->{hostname}_$latest_slave->{port}.work" );
 }
 
 # 0: no need to generate diff
@@ -1229,14 +1431,42 @@ sub recover_slave {
   return 0;
 }
 
-sub recover_master_gtid_internal($$) {
-  my $target       = shift;
-  my $latest_slave = shift;
+sub apply_binlog_to_master($) {
+  my $target   = shift;
+  my $err_file = "$g_workdir/mysql_from_binlog.err";
+  my $command =
+"cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+  $log->info("Applying differential binlog $_diff_binary_log ..");
+  if ( my $rc = system($command) ) {
+    my ( $high, $low ) = MHA::NodeUtil::system_rc($rc);
+    $log->error("FATAL: applying log files failed with rc $high:$low!");
+    $log->error(
+      sprintf(
+        "Error logs from %s:%s (the last 200 lines)..",
+        $target->{hostname}, $err_file
+      )
+    );
+    $log->error(`tail -200 $err_file`);
+    croak;
+  }
+  else {
+    $log->info("Differential log apply from binlog server succeeded.");
+  }
+  return 0;
+}
+
+sub recover_master_gtid_internal($$$) {
+  my $target            = shift;
+  my $latest_slave      = shift;
+  my $binlog_server_ref = shift;
+  my $relay_master_log_file;
+  my $exec_master_log_pos;
   $log->info();
   $log->info("* Phase 3.3: New Master Recovery Phase..\n");
   $log->info();
   $log->info(" Waiting all logs to be applied.. ");
   my $ret = $target->wait_until_relay_log_applied($log);
+
   if ($ret) {
     $log->error(" Failed with return code $ret");
     return -1;
@@ -1254,6 +1484,9 @@ sub recover_master_gtid_internal($$) {
       $log->error(" Failed with return code $ret");
       return -1;
     }
+    $latest_slave->current_slave_position();
+    $relay_master_log_file = $latest_slave->{Relay_Master_Log_File};
+    $exec_master_log_pos   = $latest_slave->{Exec_Master_Log_Pos};
     $ret =
       $_server_manager->change_master_and_start_slave( $target, $latest_slave,
       undef, undef, $log );
@@ -1267,6 +1500,19 @@ sub recover_master_gtid_internal($$) {
       return -1;
     }
     $log->info("  done.");
+  }
+  else {
+    $target->current_slave_position();
+    $relay_master_log_file = $target->{Relay_Master_Log_File};
+    $exec_master_log_pos   = $target->{Exec_Master_Log_Pos};
+  }
+  if (
+    save_from_binlog_server(
+      $relay_master_log_file, $exec_master_log_pos, $binlog_server_ref
+    )
+    )
+  {
+    apply_binlog_to_master($target);
   }
   return $_server_manager->get_new_master_binlog_position($target);
 }
@@ -1296,15 +1542,17 @@ sub recover_master_internal($$) {
   return $_server_manager->get_new_master_binlog_position($target);
 }
 
-sub recover_master($$$) {
+sub recover_master($$$$) {
   my $dead_master       = shift;
   my $new_master        = shift;
   my $latest_base_slave = shift;
+  my $binlog_server_ref = shift;
 
   my ( $master_log_file, $master_log_pos, $exec_gtid_set );
   if ( $_server_manager->is_gtid_enabled() ) {
     ( $master_log_file, $master_log_pos, $exec_gtid_set ) =
-      recover_master_gtid_internal( $new_master, $latest_base_slave );
+      recover_master_gtid_internal( $new_master, $latest_base_slave,
+      $binlog_server_ref );
     if ( !$exec_gtid_set ) {
       my $msg = "Recovering master server failed.";
       $log->error($msg);
@@ -1374,12 +1622,13 @@ sub recover_master($$$) {
 
   $log->info("** Finished master recovery successfully.");
   $mail_subject .= " to $new_master->{hostname}";
-  return ( $master_log_file, $master_log_pos );
+  return ( $master_log_file, $master_log_pos, $exec_gtid_set );
 }
 
 sub recover_slaves_gtid_internal {
-  my $new_master   = shift;
-  my @alive_slaves = $_server_manager->get_alive_slaves();
+  my $new_master    = shift;
+  my $exec_gtid_set = shift;
+  my @alive_slaves  = $_server_manager->get_alive_slaves();
   $log->info();
   $log->info("* Phase 4.1: Starting Slaves in parallel..\n");
   $log->info();
@@ -1417,6 +1666,11 @@ sub recover_slaves_gtid_internal {
       elsif ( $exit_code == 100 ) {
         $slave_starting_fail = 1;
         $mail_body .= "$target->{hostname}: ERROR: Starting slave failed.\n";
+      }
+      elsif ( $exit_code == 120 ) {
+        $slave_starting_fail = 1;
+        $mail_body .=
+"$target->{hostname}: ERROR: Failed on waiting gtid exec set on master.\n";
       }
       else {
         $slave_starting_fail = 1;
@@ -1461,6 +1715,11 @@ sub recover_slaves_gtid_internal {
         )
       {
         $pm->finish(100);
+      }
+      if ( $g_wait_until_gtid_in_sync
+        && $target->gtid_wait( $exec_gtid_set, $pplog ) )
+      {
+        $pm->finish(120);
       }
       else {
         $pm->finish(0);
@@ -1685,16 +1944,18 @@ sub report_failed_slaves($) {
   return $has_failed_slaves;
 }
 
-sub recover_slaves($$$$$) {
+sub recover_slaves($$$$$$) {
   my $dead_master       = shift;
   my $new_master        = shift;
   my $latest_base_slave = shift;
   my $master_log_file   = shift;
   my $master_log_pos    = shift;
+  my $exec_gtid_set     = shift;
   my $recover_slave_rc;
 
   if ( $_server_manager->is_gtid_enabled() ) {
-    $recover_slave_rc = recover_slaves_gtid_internal($new_master);
+    $recover_slave_rc =
+      recover_slaves_gtid_internal( $new_master, $exec_gtid_set );
   }
   else {
     if ( recover_all_slaves_relay_logs( $new_master, $latest_base_slave ) ) {
@@ -1813,12 +2074,13 @@ sub do_master_failover {
   my ( $dead_master, $new_master );
 
   eval {
-    my @servers_config = init_config();
+    my ( $servers_config_ref, $binlog_server_ref ) = init_config();
     $log->info("Starting master failover.");
     $log->info();
     $log->info("* Phase 1: Configuration Check Phase..\n");
     $log->info();
-    $dead_master = check_settings( \@servers_config );
+    init_binlog_server($binlog_server_ref);
+    $dead_master = check_settings($servers_config_ref);
 
     $log->info("** Phase 1: Configuration Check Phase completed.\n");
     $log->info();
@@ -1854,8 +2116,9 @@ sub do_master_failover {
       $latest_base_slave = find_latest_base_slave($dead_master);
     }
     $new_master = select_new_master( $dead_master, $latest_base_slave );
-    my ( $master_log_file, $master_log_pos ) =
-      recover_master( $dead_master, $new_master, $latest_base_slave );
+    my ( $master_log_file, $master_log_pos, $exec_gtid_set ) =
+      recover_master( $dead_master, $new_master, $latest_base_slave,
+      $binlog_server_ref );
     $new_master->{activated} = 1;
 
     $log->info("* Phase 3: Master Recovery Phase completed.\n");
@@ -1863,8 +2126,8 @@ sub do_master_failover {
     $log->info("* Phase 4: Slaves Recovery Phase..\n");
     $log->info();
     $error_code = recover_slaves(
-      $dead_master,     $new_master, $latest_base_slave,
-      $master_log_file, $master_log_pos
+      $dead_master,     $new_master,     $latest_base_slave,
+      $master_log_file, $master_log_pos, $exec_gtid_set
     );
 
     if ( $g_remove_dead_master_conf && $error_code == 0 ) {
@@ -1938,27 +2201,28 @@ sub main {
     @time;
 
   GetOptions(
-    'global_conf=s'            => \$g_global_config_file,
-    'conf=s'                   => \$g_config_file,
-    'dead_master_host=s'       => \$master_host,
-    'dead_master_ip=s'         => \$master_ip,
-    'dead_master_port=i'       => \$master_port,
-    'new_master_host=s'        => \$g_new_master_host,
-    'new_master_port=i'        => \$g_new_master_port,
-    'interactive=i'            => \$g_interactive,
-    'ssh_reachable=i'          => \$g_ssh_reachable,
-    'last_failover_minute=i'   => \$g_last_failover_minute,
-    'wait_on_failover_error=i' => \$g_wait_on_failover_error,
-    'ignore_last_failover'     => \$g_ignore_last_failover,
-    'workdir=s'                => \$g_workdir,
-    'manager_workdir=s'        => \$g_workdir,
-    'log_output=s'             => \$g_logfile,
-    'manager_log=s'            => \$g_logfile,
-    'skip_save_master_binlog'  => \$g_skip_save_master_binlog,
-    'remove_dead_master_conf'  => \$g_remove_dead_master_conf,
-    'remove_orig_master_conf'  => \$g_remove_dead_master_conf,
-    'skip_change_master'       => \$g_skip_change_master,
-    'skip_disable_read_only'   => \$g_skip_disable_read_only,
+    'global_conf=s'             => \$g_global_config_file,
+    'conf=s'                    => \$g_config_file,
+    'dead_master_host=s'        => \$master_host,
+    'dead_master_ip=s'          => \$master_ip,
+    'dead_master_port=i'        => \$master_port,
+    'new_master_host=s'         => \$g_new_master_host,
+    'new_master_port=i'         => \$g_new_master_port,
+    'interactive=i'             => \$g_interactive,
+    'ssh_reachable=i'           => \$g_ssh_reachable,
+    'last_failover_minute=i'    => \$g_last_failover_minute,
+    'wait_on_failover_error=i'  => \$g_wait_on_failover_error,
+    'ignore_last_failover'      => \$g_ignore_last_failover,
+    'workdir=s'                 => \$g_workdir,
+    'manager_workdir=s'         => \$g_workdir,
+    'log_output=s'              => \$g_logfile,
+    'manager_log=s'             => \$g_logfile,
+    'skip_save_master_binlog'   => \$g_skip_save_master_binlog,
+    'remove_dead_master_conf'   => \$g_remove_dead_master_conf,
+    'remove_orig_master_conf'   => \$g_remove_dead_master_conf,
+    'skip_change_master'        => \$g_skip_change_master,
+    'skip_disable_read_only'    => \$g_skip_disable_read_only,
+    'wait_until_gtid_in_sync=i' => \$g_wait_until_gtid_in_sync,
   );
   setpgrp( 0, $$ ) unless ($g_interactive);
 

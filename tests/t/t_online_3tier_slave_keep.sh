@@ -7,6 +7,7 @@ sleep 1
 ./start_m.sh --log-slave-updates
 ./stop_s1.sh
 ./start_s1.sh --log-slave-updates
+mysql $S1 -e "reset master"
 mysql $S1 -e "stop slave io_thread;start slave io_thread"
 mysql $S2 -e "stop slave io_thread;start slave io_thread"
 mysql $S3 -e "stop slave io_thread;start slave io_thread"

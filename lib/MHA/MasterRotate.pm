@@ -63,12 +63,12 @@ sub identify_orig_master() {
   $log->info();
   $log->info("* Phase 1: Configuration Check Phase..\n");
   $log->info();
-  my @servers_config = new MHA::Config(
+  my ( $sc_ref, undef ) = new MHA::Config(
     logger     => $log,
     globalfile => $g_global_config_file,
     file       => $g_config_file
   )->read_config();
-
+  my @servers_config = @$sc_ref;
   $log = MHA::ManagerUtil::init_log( undef, $servers_config[0]->{log_level} );
 
   unless ($g_workdir) {

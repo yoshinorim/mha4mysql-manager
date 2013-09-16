@@ -31,6 +31,8 @@ export S4P=10004
 export CONF=mha_test.cnf
 export CONF_LATEST=mha_test_latest.cnf
 export CONF_IGNORE=mha_test_ignore.cnf
+export CONF_BINLOG=mha_test_binlog.cnf
+export MASTER_DATA_DIR=$SANDBOX_HOME/rsandbox_$VERSION_DIR/master/data/
 export CLIENT_BINDIR=""
 export CLIENT_LIBDIR=""
 if [ "A$CUSTOM_CLIENTS" = "Ayes" ]; then
@@ -79,6 +81,22 @@ fail_if_nonempty() {
   fi
 }
 
+skip_if_gtid() {
+GTID=`mysql -h 127.0.0.1 --port=$MP -e "show variables like 'gtid_mode'\G" | grep Value | awk {'print $2'}`
+  if [ "a$GTID" = "aON" ]; then
+    echo "$1 [Skip]"
+    exit 0
+  fi
+}
+
+is_gtid_supported() {
+GTID=`mysql -h 127.0.0.1 --port=$S3P -e "show variables like 'gtid_mode'\G" | grep Value | awk {'print $2'}`
+  if [ "a$GTID" = "aON" ]; then
+    return 1
+  fi
+  return 0
+}
+
 is_read_only() {
 READ_ONLY=`mysql -h127.0.0.1 --port=$2 -e "select @@global.read_only\G" | grep read_only | awk '{print $2}'`
   if [ "$READ_ONLY" = "1" ]; then
@@ -117,6 +135,17 @@ MASTER_PORT=`mysql -h127.0.0.1 --port=$2 -e "show slave status\G" | grep Master_
     echo "$1 [Fail (Master Port $2 is not equal to $3)]"
     exit 1
   fi
+}
+
+get_binlog_file() {
+B_FILE=`mysql -h127.0.0.1 --port=$1 -e "show master status\G" | grep File | awk {'print $2'}`
+  echo $B_FILE
+}
+
+
+get_binlog_position() {
+POS=`mysql -h127.0.0.1 --port=$1 -e "show master status\G" | grep Position | awk {'print $2'}`
+  echo $POS
 }
 
 check_count() {

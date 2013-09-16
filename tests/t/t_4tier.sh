@@ -6,17 +6,20 @@ sleep 1
 ./stop_s1.sh
 ./start_s1.sh --log-slave-updates
 mysql $S1 -e "stop slave io_thread;start slave io_thread"
-
+FILE1=`get_binlog_file $S1P`
+POS1=`get_binlog_position $S1P`
 mysql $S2 -e "stop slave"
-mysql $S2 -e "change master to master_host='127.0.0.1', master_port=$S1P, master_user='rsandbox', master_password='rsandbox', master_log_file='mysql-bin.000001', master_log_pos=4"
+mysql $S2 -e "change master to master_host='127.0.0.1', master_port=$S1P, master_user='rsandbox', master_password='rsandbox', master_log_file=\"$FILE1\", master_log_pos=$POS1"
 mysql $S2 -e "start slave"
 
 ./stop_s2.sh
 ./start_s2.sh --log-slave-updates
 mysql $S2 -e "stop slave io_thread;start slave io_thread"
+FILE2=`get_binlog_file $S2P`
+POS2=`get_binlog_position $S2P`
 
 mysql $S3 -e "stop slave"
-mysql $S3 -e "change master to master_host='127.0.0.1', master_port=$S2P, master_user='rsandbox', master_password='rsandbox', master_log_file='mysql-bin.000001', master_log_pos=4"
+mysql $S3 -e "change master to master_host='127.0.0.1', master_port=$S2P, master_user='rsandbox', master_password='rsandbox', master_log_file=\"$FILE2\", master_log_pos=$POS2"
 mysql $S3 -e "start slave"
 
 sleep 5
