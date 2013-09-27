@@ -195,6 +195,52 @@ sub init_servers($) {
   }
 }
 
+sub init_binlog_server {
+  my $binlog_server_ref        = shift;
+  my $log                      = shift;
+  my @binlog_servers           = @$binlog_server_ref;
+  my $num_alive_binlog_servers = 0;
+  foreach my $server (@binlog_servers) {
+    unless ( $server->{logger} ) {
+      $server->{logger} = $log;
+    }
+    if (
+      MHA::HealthCheck::ssh_check_simple(
+        $server->{ssh_user}, $server->{ssh_host},
+        $server->{ssh_ip},   $server->{ssh_port},
+        $server->{logger},   $server->{ssh_connection_timeout}
+      )
+      )
+    {
+      $log->warning("Failed to SSH to binlog server $server->{hostname}");
+      $server->{ssh_reachable} = 0;
+    }
+    else {
+      if (
+        MHA::ManagerUtil::get_node_version(
+          $server->{logger}, $server->{ssh_user}, $server->{ssh_host},
+          $server->{ssh_ip}, $server->{ssh_port}
+        )
+        )
+      {
+        $log->info("Binlog server $server->{hostname} is reachable.");
+        $server->{ssh_reachable} = 1;
+        $num_alive_binlog_servers++;
+      }
+      else {
+        $log->warning(
+"Failed to get MHA Node version from binlog server $server->{hostname}"
+        );
+        $server->{ssh_reachable} = 0;
+      }
+    }
+  }
+  if ( $#binlog_servers >= 0 && $num_alive_binlog_servers <= 0 ) {
+    $log->error("Binlog Server is defined but there is no alive server.");
+    croak;
+  }
+}
+
 sub set_logger($$) {
   my $self   = shift;
   my $logger = shift;

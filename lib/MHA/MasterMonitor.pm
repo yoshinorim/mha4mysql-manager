@@ -140,9 +140,12 @@ sub check_master_ssh_env($) {
   return $ssh_reachable;
 }
 
-sub check_master_binlog($) {
+sub check_binlog($) {
   my $target = shift;
-  $log->info("Checking recovery script configurations on the current master..");
+  $log->info(
+    sprintf( "Checking recovery script configurations on %s..",
+      $target->get_hostinfo() )
+  );
   my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_host};
   my $command       = get_binlog_check_command($target);
   $log->info("  Executing command: $command ");
@@ -151,10 +154,10 @@ sub check_master_binlog($) {
     MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $target->{ssh_port},
     $command, $g_logfile );
   if ( $high ne '0' || $low ne '0' ) {
-    $log->error("Master setting check failed!");
+    $log->error("Binlog setting check failed!");
     return 1;
   }
-  $log->info("Master setting check done.");
+  $log->info("Binlog setting check done.");
   return 0;
 }
 
@@ -249,6 +252,21 @@ sub check_scripts($) {
   }
 }
 
+sub check_binlog_servers {
+  my $binlog_server_ref = shift;
+  my $log               = shift;
+  my @binlog_servers    = @$binlog_server_ref;
+  if ( $#binlog_servers >= 0 ) {
+    MHA::ServerManager::init_binlog_server( $binlog_server_ref, $log );
+    foreach my $server (@binlog_servers) {
+      if ( check_binlog($server) ) {
+        $log->error("Binlog server configuration failed.");
+        croak;
+      }
+    }
+  }
+}
+
 sub wait_until_master_is_unreachable() {
   my ( @servers_config, @servers, @dead_servers, @alive_servers, @alive_slaves,
     $current_master, $ret, $ssh_reachable );
@@ -261,7 +279,7 @@ sub wait_until_master_is_unreachable() {
       $log->error("Configuration file $g_config_file not found!");
       croak;
     }
-    my ( $sc_ref, $binlog_ref ) = new MHA::Config(
+    my ( $sc_ref, $binlog_server_ref ) = new MHA::Config(
       logger     => $log,
       globalfile => $g_global_config_file,
       file       => $g_config_file
@@ -361,6 +379,7 @@ sub wait_until_master_is_unreachable() {
     else {
       $log->info(
         "GTID is supported. Skipping all SSH and Node package checking.");
+      check_binlog_servers( $binlog_server_ref, $log );
     }
 
     unless ($current_master) {
@@ -378,7 +397,7 @@ sub wait_until_master_is_unreachable() {
       $g_ignore_fail_on_start );
     if ( check_master_ssh_env($current_master) ) {
       if ( !$_server_manager->is_gtid_enabled()
-        && check_master_binlog($current_master) )
+        && check_binlog($current_master) )
       {
         $log->error("Master configuration failed.");
         croak;
@@ -525,7 +544,7 @@ sub wait_until_master_is_dead {
       file       => $g_config_file
     );
 
-    my ( $sc_ref, $binlog_ref ) = $conf->read_config();
+    my ( $sc_ref, $binlog_server_ref ) = $conf->read_config();
     my @servers_config = @$sc_ref;
     $_server_manager = new MHA::ServerManager( servers => \@servers_config );
     $_server_manager->set_logger($log);
