@@ -116,6 +116,14 @@ use constant Flush_Tables_With_Read_Lock_SQL => "FLUSH TABLES WITH READ LOCK";
 use constant Unlock_Tables_SQL               => "UNLOCK TABLES";
 use constant Repl_User_SQL =>
   "SELECT Repl_slave_priv AS Value FROM mysql.user WHERE user = ?";
+use constant Select_User_Regexp_SQL =>
+"SELECT user, host, password FROM mysql.user WHERE user REGEXP ? AND host REGEXP ?";
+use constant Set_Password_SQL             => "SET PASSWORD FOR ?\@? = ?";
+use constant Old_Password_Length          => 16;
+use constant Blocked_Empty_Password       => '?' x 41;
+use constant Blocked_Old_Password_Head    => '~' x 25;
+use constant Blocked_New_Password_Regexp  => qr/^[0-9a-fA-F]{40}\*$/o;
+use constant Released_New_Password_Regexp => qr/^\*[0-9a-fA-F]{40}$/o;
 
 sub new {
   my $class = shift;
@@ -854,6 +862,70 @@ sub gtid_wait($$) {
   $sth->execute($exec_gtid);
   my $href = $sth->fetchrow_hashref;
   return $href->{Result};
+}
+
+sub _blocked_password {
+  my $password = shift;
+  if ( $password eq '' ) {
+    return Blocked_Empty_Password;
+  }
+  elsif ( length($password) == Old_Password_Length ) {
+    return Blocked_Old_Password_Head . $password;
+  }
+  elsif ( $password =~ Released_New_Password_Regexp ) {
+    return join( "", reverse( split //, $password ) );
+  }
+  else {
+    return;
+  }
+}
+
+sub _released_password {
+  my $password = shift;
+  if ( $password eq Blocked_Empty_Password ) {
+    return '';
+  }
+  elsif ( index( $password, Blocked_Old_Password_Head ) == 0 ) {
+    return substr( $password, length(Blocked_Old_Password_Head) );
+  }
+  elsif ( $password =~ Blocked_New_Password_Regexp ) {
+    return join( "", reverse( split //, $password ) );
+  }
+  else {
+    return;
+  }
+}
+
+sub _block_release_user_by_regexp {
+  my ( $dbh, $user, $host, $block ) = @_;
+  my $users_to_block =
+    $dbh->selectall_arrayref( Select_User_Regexp_SQL, { Slice => {} },
+    $user, $host );
+  my $failure = 0;
+  for my $u ( @{$users_to_block} ) {
+    my $password =
+      $block
+      ? _blocked_password( $u->{password} )
+      : _released_password( $u->{password} );
+    if ( defined $password ) {
+      my $ret =
+        $dbh->do( Set_Password_SQL, undef, $u->{user}, $u->{host}, $password );
+      unless ( $ret eq "0E0" ) {
+        $failure++;
+      }
+    }
+  }
+  return $failure;
+}
+
+sub block_user_regexp {
+  my ( $self, $user, $host ) = @_;
+  return _block_release_user_by_regexp( $self->{dbh}, $user, $host, 1 );
+}
+
+sub release_user_regexp {
+  my ( $self, $user, $host ) = @_;
+  return _block_release_user_by_regexp( $self->{dbh}, $user, $host, 0 );
 }
 
 1;
