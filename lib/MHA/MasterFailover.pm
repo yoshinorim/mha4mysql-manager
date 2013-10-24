@@ -518,6 +518,7 @@ sub save_from_binlog_server {
   my $binlog_server_ref     = shift;
   my @binlog_servers        = @$binlog_server_ref;
   my $max_saved_binlog_size = 0;
+  my $failed_servers        = 0;
 
   my $pm = new Parallel::ForkManager( $#binlog_servers + 1 );
   $pm->run_on_start(
@@ -559,12 +560,14 @@ sub save_from_binlog_server {
         }
       }
       elsif ( $exit_code == 2 ) {
-        $log->info("SSH is not reachable on $target->{hostname}. Skipping");
+        $failed_servers++;
+        $log->warning("SSH is not reachable on $target->{hostname}. Skipping");
       }
       elsif ( $exit_code == 10 ) {
         $log->info("No binlog events found from $target->{hostname}. Skipping");
       }
       else {
+        $failed_servers++;
         $log->warning("Got error from $target->{hostname}.");
       }
     }
@@ -656,6 +659,11 @@ sub save_from_binlog_server {
     $pm->finish(1);
   }
   $pm->wait_all_children;
+
+  if ( $#binlog_servers >= 0 && $#binlog_servers + 1 <= $failed_servers ) {
+    $log->error("All binlog servers failed!");
+    croak;
+  }
   if ($_diff_binary_log) {
     return 1;
   }
