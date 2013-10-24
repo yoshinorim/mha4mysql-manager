@@ -265,11 +265,7 @@ sub connect_and_get_status {
   else {
     $self->{read_only}   = $read_only;
     $self->{relay_purge} = $relay_purge;
-    my $master_bin_addr = gethostbyname( $status{Master_Host} );
-    my $master_ip;
-    if ($master_bin_addr) {
-      $master_ip = sprintf( "%vd", $master_bin_addr );
-    }
+    my $master_ip = MHA::NodeUtil::get_ip( $status{Master_Host} );
     unless ($master_ip) {
       $log->error(
         sprintf(
