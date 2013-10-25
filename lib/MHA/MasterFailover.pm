@@ -54,6 +54,7 @@ my $g_remove_dead_master_conf;
 my $g_skip_change_master;
 my $g_skip_disable_read_only;
 my $g_wait_until_gtid_in_sync = 1;
+my $g_ignore_binlog_server_error;
 my $_real_ssh_reachable;
 my $_saved_file_suffix;
 my $_start_datetime;
@@ -660,7 +661,10 @@ sub save_from_binlog_server {
   }
   $pm->wait_all_children;
 
-  if ( $#binlog_servers >= 0 && $#binlog_servers + 1 <= $failed_servers ) {
+  if (!$g_ignore_binlog_server_error
+    && $#binlog_servers >= 0
+    && $#binlog_servers + 1 <= $failed_servers )
+  {
     $log->error("All binlog servers failed!");
     croak;
   }
@@ -2163,28 +2167,29 @@ sub main {
     @time;
 
   GetOptions(
-    'global_conf=s'             => \$g_global_config_file,
-    'conf=s'                    => \$g_config_file,
-    'dead_master_host=s'        => \$master_host,
-    'dead_master_ip=s'          => \$master_ip,
-    'dead_master_port=i'        => \$master_port,
-    'new_master_host=s'         => \$g_new_master_host,
-    'new_master_port=i'         => \$g_new_master_port,
-    'interactive=i'             => \$g_interactive,
-    'ssh_reachable=i'           => \$g_ssh_reachable,
-    'last_failover_minute=i'    => \$g_last_failover_minute,
-    'wait_on_failover_error=i'  => \$g_wait_on_failover_error,
-    'ignore_last_failover'      => \$g_ignore_last_failover,
-    'workdir=s'                 => \$g_workdir,
-    'manager_workdir=s'         => \$g_workdir,
-    'log_output=s'              => \$g_logfile,
-    'manager_log=s'             => \$g_logfile,
-    'skip_save_master_binlog'   => \$g_skip_save_master_binlog,
-    'remove_dead_master_conf'   => \$g_remove_dead_master_conf,
-    'remove_orig_master_conf'   => \$g_remove_dead_master_conf,
-    'skip_change_master'        => \$g_skip_change_master,
-    'skip_disable_read_only'    => \$g_skip_disable_read_only,
-    'wait_until_gtid_in_sync=i' => \$g_wait_until_gtid_in_sync,
+    'global_conf=s'              => \$g_global_config_file,
+    'conf=s'                     => \$g_config_file,
+    'dead_master_host=s'         => \$master_host,
+    'dead_master_ip=s'           => \$master_ip,
+    'dead_master_port=i'         => \$master_port,
+    'new_master_host=s'          => \$g_new_master_host,
+    'new_master_port=i'          => \$g_new_master_port,
+    'interactive=i'              => \$g_interactive,
+    'ssh_reachable=i'            => \$g_ssh_reachable,
+    'last_failover_minute=i'     => \$g_last_failover_minute,
+    'wait_on_failover_error=i'   => \$g_wait_on_failover_error,
+    'ignore_last_failover'       => \$g_ignore_last_failover,
+    'workdir=s'                  => \$g_workdir,
+    'manager_workdir=s'          => \$g_workdir,
+    'log_output=s'               => \$g_logfile,
+    'manager_log=s'              => \$g_logfile,
+    'skip_save_master_binlog'    => \$g_skip_save_master_binlog,
+    'remove_dead_master_conf'    => \$g_remove_dead_master_conf,
+    'remove_orig_master_conf'    => \$g_remove_dead_master_conf,
+    'skip_change_master'         => \$g_skip_change_master,
+    'skip_disable_read_only'     => \$g_skip_disable_read_only,
+    'wait_until_gtid_in_sync=i'  => \$g_wait_until_gtid_in_sync,
+    'ignore_binlog_server_error' => \$g_ignore_binlog_server_error,
   );
   setpgrp( 0, $$ ) unless ($g_interactive);
 
