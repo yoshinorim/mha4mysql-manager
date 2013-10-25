@@ -275,11 +275,12 @@ sub connect_and_get_status {
       );
       croak;
     }
-    $self->{Master_IP}   = $master_ip;
-    $self->{Master_Port} = $status{Master_Port};
-    $self->{not_slave}   = 0;
-    $self->{Master_Host} = $status{Master_Host};
-    $self->{repl_user}   = $status{Master_User} unless ( $self->{repl_user} );
+    $self->{Master_IP}     = $master_ip;
+    $self->{Master_Port}   = $status{Master_Port};
+    $self->{not_slave}     = 0;
+    $self->{Master_Host}   = $status{Master_Host};
+    $self->{repl_user}     = $status{Master_User} unless ( $self->{repl_user} );
+    $self->{Auto_Position} = $status{Auto_Position};
 
 # Master_Host is ip address when you use ip address to connect. In this case, you should use ip address to change master.
     if ( $self->{Master_Host} eq $self->{Master_IP} ) {

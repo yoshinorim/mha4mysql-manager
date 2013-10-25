@@ -1285,7 +1285,7 @@ sub get_new_master_binlog_position($$) {
   my ( $file, $pos, $a, $b, $gtid ) = $dbhelper->show_master_status();
   if ( $file && defined($pos) ) {
     $log->info(" $file:$pos");
-    if ( $self->is_gtid_enabled() ) {
+    if ( $self->is_gtid_auto_pos_enabled() ) {
       $log->info(
         sprintf(
 " All other slaves should start replication from here. Statement should be: CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_AUTO_POSITION=1, MASTER_USER='%s', MASTER_PASSWORD='xxx';",
@@ -1339,7 +1339,7 @@ sub change_master_and_start_slave {
     ? $master->{ip}
     : $master->{hostname};
 
-  if ( $self->is_gtid_enabled() ) {
+  if ( $self->is_gtid_auto_pos_enabled() ) {
     $dbhelper->change_master_gtid( $addr, $master->{port},
       $master->{repl_user}, $master->{repl_password} );
   }
@@ -1531,14 +1531,50 @@ sub check_replication_health {
   }
 }
 
-sub is_gtid_enabled($) {
+sub is_gtid_auto_pos_enabled($) {
   my $self    = shift;
   my @servers = $self->get_alive_servers();
+  my @slaves  = $self->get_alive_slaves();
   return 0 if ( $#servers < 0 );
   foreach (@servers) {
     return 0 unless ( $_->{has_gtid} );
   }
-  return 1;
+  foreach (@slaves) {
+    return 1 if ( defined( $_->{Auto_Position} ) && $_->{Auto_Position} == 1 );
+  }
+  return 0;
+}
+
+sub is_any_gtid_enabled($) {
+  my $self    = shift;
+  my @servers = $self->get_alive_servers();
+  my @slaves  = $self->get_alive_slaves();
+  return 0 if ( $#servers < 0 );
+  foreach (@servers) {
+    return 1 if ( $_->{has_gtid} );
+  }
+  return 0;
+}
+
+sub is_auto_pos_enabled($) {
+  my $self   = shift;
+  my @slaves = $self->get_alive_slaves();
+  foreach (@slaves) {
+    return 1 if ( defined( $_->{Auto_Position} ) && $_->{Auto_Position} == 1 );
+  }
+  return 0;
+}
+
+sub force_disable_log_bin_if_auto_pos_disabled($) {
+  my $self = shift;
+  my $log  = $self->{logger};
+  if ( $self->is_any_gtid_enabled() && !$self->is_auto_pos_enabled() ) {
+    my @slaves = $self->get_alive_slaves();
+    $log->info("Forcing disable_log_bin since GTID auto pos is disabled");
+    foreach my $slave (@slaves) {
+      $slave->{disable_log_bin} = 1;
+    }
+  }
 }
 
 sub wait_until_in_sync($$$) {

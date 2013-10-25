@@ -1515,7 +1515,7 @@ sub recover_master($$$$) {
   my $binlog_server_ref = shift;
 
   my ( $master_log_file, $master_log_pos, $exec_gtid_set );
-  if ( $_server_manager->is_gtid_enabled() ) {
+  if ( $_server_manager->is_gtid_auto_pos_enabled() ) {
     ( $master_log_file, $master_log_pos, $exec_gtid_set ) =
       recover_master_gtid_internal( $new_master, $latest_base_slave,
       $binlog_server_ref );
@@ -1919,7 +1919,7 @@ sub recover_slaves($$$$$$) {
   my $exec_gtid_set     = shift;
   my $recover_slave_rc;
 
-  if ( $_server_manager->is_gtid_enabled() ) {
+  if ( $_server_manager->is_gtid_auto_pos_enabled() ) {
     $recover_slave_rc =
       recover_slaves_gtid_internal( $new_master, $exec_gtid_set );
   }
@@ -2047,7 +2047,14 @@ sub do_master_failover {
     $log->info();
     MHA::ServerManager::init_binlog_server( $binlog_server_ref, $log );
     $dead_master = check_settings($servers_config_ref);
-
+    if ( $_server_manager->is_gtid_auto_pos_enabled() ) {
+      $log->info("Starting GTID based failover.");
+    }
+    else {
+      $_server_manager->force_disable_log_bin_if_auto_pos_disabled();
+      $log->info("Starting Non-GTID based failover.");
+    }
+    $log->info();
     $log->info("** Phase 1: Configuration Check Phase completed.\n");
     $log->info();
     $log->info("* Phase 2: Dead Master Shutdown Phase..\n");
@@ -2063,7 +2070,7 @@ sub do_master_failover {
     $log->info();
     check_set_latest_slaves();
 
-    if ( !$_server_manager->is_gtid_enabled() ) {
+    if ( !$_server_manager->is_gtid_auto_pos_enabled() ) {
       $log->info();
       $log->info("* Phase 3.2: Saving Dead Master's Binlog Phase..\n");
       $log->info();
@@ -2075,7 +2082,7 @@ sub do_master_failover {
     $log->info();
 
     my $latest_base_slave;
-    if ( $_server_manager->is_gtid_enabled() ) {
+    if ( $_server_manager->is_gtid_auto_pos_enabled() ) {
       $latest_base_slave = $_server_manager->get_most_advanced_latest_slave();
     }
     else {

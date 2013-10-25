@@ -363,7 +363,8 @@ sub wait_until_master_is_unreachable() {
     }
     $_server_manager->check_repl_priv();
 
-    if ( !$_server_manager->is_gtid_enabled() ) {
+    if ( !$_server_manager->is_gtid_auto_pos_enabled() ) {
+      $log->info("GTID (with auto-pos) is not supported");
       MHA::SSHCheck::do_ssh_connection_check( \@alive_servers, $log,
         $servers_config[0]->{log_level}, $g_workdir )
         unless ($g_skip_ssh_check);
@@ -378,7 +379,8 @@ sub wait_until_master_is_unreachable() {
     }
     else {
       $log->info(
-        "GTID is supported. Skipping all SSH and Node package checking.");
+"GTID (with auto-pos) is supported. Skipping all SSH and Node package checking."
+      );
       check_binlog_servers( $binlog_server_ref, $log );
     }
 
@@ -396,7 +398,7 @@ sub wait_until_master_is_unreachable() {
     $_server_manager->validate_num_alive_servers( $current_master,
       $g_ignore_fail_on_start );
     if ( check_master_ssh_env($current_master) ) {
-      if ( !$_server_manager->is_gtid_enabled()
+      if ( !$_server_manager->is_gtid_auto_pos_enabled()
         && check_binlog($current_master) )
       {
         $log->error("Master configuration failed.");
@@ -406,7 +408,7 @@ sub wait_until_master_is_unreachable() {
     $_status_handler->set_master_host( $current_master->{hostname} )
       unless ($g_check_only);
 
-    if ( !$_server_manager->is_gtid_enabled() && check_slave_env() ) {
+    if ( !$_server_manager->is_gtid_auto_pos_enabled() && check_slave_env() ) {
       $log->error("Slave configuration failed.");
       croak;
     }
@@ -429,7 +431,7 @@ sub wait_until_master_is_unreachable() {
   my $master_ping;
   eval {
     my $ssh_check_command;
-    if (!$_server_manager->is_gtid_enabled()
+    if (!$_server_manager->is_gtid_auto_pos_enabled()
       && $_master_node_version
       && $_master_node_version >= 0.53 )
     {

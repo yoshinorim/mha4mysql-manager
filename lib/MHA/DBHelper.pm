@@ -63,13 +63,14 @@ use constant Seconds_Behind_Master       => "Seconds_Behind_Master";
 use constant Last_Errno                  => "Last_Errno";
 use constant Last_Error                  => "Last_Error";
 use constant Retrieved_Gtid_Set          => "Retrieved_Gtid_Set";
+use constant Auto_Position               => "Auto_Position";
 
 use constant Set_Long_Wait_Timeout_SQL => "SET wait_timeout=86400";
 use constant Show_One_Variable_SQL     => "SHOW GLOBAL VARIABLES LIKE ?";
 use constant Change_Master_SQL =>
-"CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
+"CHANGE MASTER TO /*!50601 MASTER_AUTO_POSITION=0, */ MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
 use constant Change_Master_NoPass_SQL =>
-"CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
+"CHANGE MASTER TO /*!50601 MASTER_AUTO_POSITION=0, */ MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
 use constant Change_Master_Gtid_SQL =>
 "CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_AUTO_POSITION=1";
 use constant Change_Master_Gtid_NoPass_SQL =>
@@ -594,7 +595,7 @@ sub check_slave_status {
     Last_Error,            Exec_Master_Log_Pos,
     Relay_Log_File,        Relay_Log_Pos,
     Seconds_Behind_Master, Retrieved_Gtid_Set,
-    Executed_Gtid_Set
+    Executed_Gtid_Set,     Auto_Position
     )
   {
     $status{$key} = $href->{$key};
