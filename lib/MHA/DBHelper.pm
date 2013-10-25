@@ -755,7 +755,7 @@ sub get_threads_util {
     $info =~ s/^\s*(.*?)\s*$/$1/ if defined($info);
     next if ( $my_connection_id == $id );
     next if ( defined($query_time) && $query_time < $running_time_threshold );
-    next if ( defined($command)    && $command eq "Binlog Dump" );
+    next if ( defined($command)    && $command =~ /^Binlog Dump/ );
     next if ( defined($user)       && $user eq "system user" );
 
     if ( $type >= 1 ) {
