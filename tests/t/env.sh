@@ -9,6 +9,8 @@ if [ "A$VERSION_DIR" = "A" ]; then
 fi
 
 if [ "A$USE_ROW_FORMAT" = "A" ]; then
+  #export MASTER_OPTIONS="--my_file=my.cnf"
+  #export SLAVE_OPTIONS="--my_file=my-gtid-slave.cnf"
   export NODE_OPTIONS="--my_file=my.cnf"
 else
   export NODE_OPTIONS="--my_file=my-row.cnf"
@@ -82,16 +84,27 @@ fail_if_nonempty() {
 }
 
 skip_if_gtid() {
-GTID=`mysql -h 127.0.0.1 --port=$MP -e "show variables like 'gtid_mode'\G" | grep Value | awk {'print $2'}`
-  if [ "a$GTID" = "aON" ]; then
+GTID=`mysql -h 127.0.0.1 --port=$S3P -e "show slave status\G" | grep Auto_Position | awk {'print $2'}`
+  if [ "a$GTID" = "a1" ]; then
     echo "$1 [Skip]"
     exit 0
   fi
 }
 
+skip_if_not_gtid() {
+GTID=`mysql -h 127.0.0.1 --port=$S3P -e "show slave status\G" | grep Auto_Position | awk {'print $2'}`
+  if [ "a$GTID" = "a1" ]; then
+    return 0
+  else
+    echo "$1 [Skip]"
+    exit 0
+  fi
+}
+
+
 is_gtid_supported() {
-GTID=`mysql -h 127.0.0.1 --port=$S3P -e "show variables like 'gtid_mode'\G" | grep Value | awk {'print $2'}`
-  if [ "a$GTID" = "aON" ]; then
+GTID=`mysql -h 127.0.0.1 --port=$S3P -e "show slave status\G" | grep Auto_Position | awk {'print $2'}`
+  if [ "a$GTID" = "a1" ]; then
     return 1
   fi
   return 0

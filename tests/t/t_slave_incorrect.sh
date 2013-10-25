@@ -14,7 +14,13 @@ done
 
 mysql $M test -e "insert into t1 values(2, 200, 'aaaaaa')"
 
+is_gtid_supported
+if test $? = 1
+then
+mysql $S3  -e "stop slave; reset slave all"
+else
 mysql $S3  -e "stop slave; reset slave; change master to master_log_file=''"
+fi
 
 masterha_check_repl --conf=$CONF > /dev/null 2>&1
 fail_if_zero $0 $?

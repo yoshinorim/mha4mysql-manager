@@ -4,13 +4,13 @@ password=msandbox
 ping_interval=3
 init_conf_load_script=""
 shutdown_script=""
-master_ip_failover_script=./master_ip_failover
-master_ip_online_change_script=./master_ip_online_change
+master_ip_failover_script=""
+master_ip_online_change_script=""
 report_script=""
-log_level= debug
-check_repl_delay=0
 ##CLIENT_BINDIR##
 ##CLIENT_LIBDIR##
+log_level = debug
+ssh_connection_timeout = 20
 
 [server1]
 hostname=127.0.0.1
@@ -46,5 +46,9 @@ node_label=sandbox slave4
 
 [binlog1]
 hostname=127.0.0.1
-master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/master/data/
+master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/master/datax
+
+[binlog2]
+hostname=127.0.0.1
+master_binlog_dir=##SANDBOX_HOME##/rsandbox_##VERSION_DIR##/master/data
 

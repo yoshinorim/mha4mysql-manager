@@ -7,7 +7,7 @@ mysql $S3 test -e "stop slave io_thread"
 mysql $S4 test -e "stop slave io_thread"
 mysql $M test -e "insert into t1 values (101, 100, 100)"
 
-masterha_manager --conf=$CONF --log_output=manager.log --skip_ssh_check > manager.log 2>&1 &
+masterha_manager --conf=$CONF --log_output=manager.log --skip_ssh_check --ignore_binlog_server_error > manager.log 2>&1 &
 manager_pid=$!
 wait_until_manager_start $0
 

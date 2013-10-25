@@ -6,7 +6,7 @@ mysql $S1 -e "stop slave io_thread"
 mysql $M test -e "flush logs"
 mysql $M test -e "insert into t1 values(3, 200, 'aaaaaa')"
 mysql $M test -e "insert into t1 values(4, 200, 'aaaaaa')"
-
+sleep 3
 mysql $S2 -e "stop slave io_thread"
 mysql $S3 -e "stop slave io_thread"
 

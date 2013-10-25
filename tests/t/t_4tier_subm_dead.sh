@@ -8,7 +8,14 @@ sleep 1
 mysql $S1 -e "stop slave io_thread;start slave io_thread"
 
 mysql $S2 -e "stop slave"
+is_gtid_supported
+if test $? = 1
+then
+mysql $S2 -e "change master to master_host='127.0.0.1', master_port=$S1P, master_user='rsandbox', master_password='rsandbox'"
+else
 mysql $S2 -e "change master to master_host='127.0.0.1', master_port=$S1P, master_user='rsandbox', master_password='rsandbox', master_log_file='mysql-bin.000001', master_log_pos=4"
+fi
+
 mysql $S2 -e "start slave"
 
 ./stop_s2.sh
@@ -16,7 +23,13 @@ mysql $S2 -e "start slave"
 mysql $S2 -e "stop slave io_thread;start slave io_thread"
 
 mysql $S3 -e "stop slave"
+is_gtid_supported
+if test $? = 1
+then
+mysql $S3 -e "change master to master_host='127.0.0.1', master_port=$S2P, master_user='rsandbox', master_password='rsandbox'"
+else
 mysql $S3 -e "change master to master_host='127.0.0.1', master_port=$S2P, master_user='rsandbox', master_password='rsandbox', master_log_file='mysql-bin.000001', master_log_pos=4"
+fi
 mysql $S3 -e "start slave"
 
 sleep 5

@@ -40,3 +40,10 @@ wait_until_count $0 $S2P 1
 wait_until_count $0 $S3P 1
 wait_until_count $0 $S4P 1
 
+if [ "A$USE_GTID_AUTO_POS" != "A" ]; then
+  mysql $S1 -e "stop slave; change master to master_auto_position=1; start slave" > /dev/null 2>&1
+  mysql $S2 -e "stop slave; change master to master_auto_position=1; start slave" > /dev/null 2>&1
+  mysql $S3 -e "stop slave; change master to master_auto_position=1; start slave" > /dev/null 2>&1
+  mysql $S4 -e "stop slave; change master to master_auto_position=1; start slave" > /dev/null 2>&1
+fi
+
