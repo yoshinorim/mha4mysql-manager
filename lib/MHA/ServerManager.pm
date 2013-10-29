@@ -318,6 +318,9 @@ sub connect_all_and_read_server_status($$$$) {
   $self->compare_slave_version();
   $log->debug("Connecting to servers done.");
   $self->validate_current_master();
+  $self->{gtid_failover_mode} = $self->get_gtid_status();
+  $log->info(
+    sprintf( "GTID failover mode = %d", $self->{gtid_failover_mode} ) );
 }
 
 sub get_oldest_version($) {
@@ -1531,7 +1534,7 @@ sub check_replication_health {
   }
 }
 
-sub is_gtid_auto_pos_enabled($) {
+sub get_gtid_status($) {
   my $self    = shift;
   my @servers = $self->get_alive_servers();
   my @slaves  = $self->get_alive_slaves();
@@ -1540,35 +1543,27 @@ sub is_gtid_auto_pos_enabled($) {
     return 0 unless ( $_->{has_gtid} );
   }
   foreach (@slaves) {
-    return 1 if ( defined( $_->{Auto_Position} ) && $_->{Auto_Position} == 1 );
+    return 0 unless ( $_->{Executed_Gtid_Set} );
   }
-  return 0;
-}
-
-sub is_any_gtid_enabled($) {
-  my $self    = shift;
-  my @servers = $self->get_alive_servers();
-  my @slaves  = $self->get_alive_slaves();
-  return 0 if ( $#servers < 0 );
-  foreach (@servers) {
-    return 1 if ( $_->{has_gtid} );
-  }
-  return 0;
-}
-
-sub is_auto_pos_enabled($) {
-  my $self   = shift;
-  my @slaves = $self->get_alive_slaves();
   foreach (@slaves) {
-    return 1 if ( defined( $_->{Auto_Position} ) && $_->{Auto_Position} == 1 );
+    return 1
+      if ( defined( $_->{Auto_Position} )
+      && $_->{Auto_Position} == 1 );
+    return 1 if ( $_->{use_gtid_auto_pos} );
   }
+  return 2;
+}
+
+sub is_gtid_auto_pos_enabled($) {
+  my $self = shift;
+  return 1 if ( $self->{gtid_failover_mode} == 1 );
   return 0;
 }
 
 sub force_disable_log_bin_if_auto_pos_disabled($) {
   my $self = shift;
   my $log  = $self->{logger};
-  if ( $self->is_any_gtid_enabled() && !$self->is_auto_pos_enabled() ) {
+  if ( $self->{gtid_failover_mode} == 2 ) {
     my @slaves = $self->get_alive_slaves();
     $log->info("Forcing disable_log_bin since GTID auto pos is disabled");
     foreach my $slave (@slaves) {

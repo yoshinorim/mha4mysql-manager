@@ -281,6 +281,7 @@ sub connect_and_get_status {
     $self->{Master_Host}   = $status{Master_Host};
     $self->{repl_user}     = $status{Master_User} unless ( $self->{repl_user} );
     $self->{Auto_Position} = $status{Auto_Position};
+    $self->{Executed_Gtid_Set} = $status{Executed_Gtid_Set};
 
 # Master_Host is ip address when you use ip address to connect. In this case, you should use ip address to change master.
     if ( $self->{Master_Host} eq $self->{Master_IP} ) {
