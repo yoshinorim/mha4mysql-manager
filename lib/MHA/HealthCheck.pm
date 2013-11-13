@@ -618,7 +618,7 @@ sub wait_until_unreachable($) {
         # Parent process forks one child process. The child process queries
         # from MySQL every <interval> seconds. The child process may hang on
         # executing queries.
-        # Since current DBD::mysql does not have an option to set
+        # DBD::mysql 4.022 or earlier does not have an option to set
         # read timeout, executing queries might take forever. To avoid this,
         # the parent process kills the child process if it won't exit within
         # <interval> seconds.

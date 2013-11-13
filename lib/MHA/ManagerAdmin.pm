@@ -216,7 +216,7 @@ sub stop_manager {
     elsif ( $ret == $MHA::ManagerConst::ST_FAILOVER_RUNNING
       && !$self->{abort} )
     {
-      print "Currently Failover is running on $self->{app}. Shoud not stop.\n";
+      print "Currently Failover is running on $self->{app}. Should not stop.\n";
       return 1;
     }
     else {

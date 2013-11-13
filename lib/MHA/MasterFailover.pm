@@ -281,7 +281,7 @@ sub check_settings($) {
     print "Master $dead_master->{hostname} is dead. Proceed? (yes/NO): ";
     my $ret = <STDIN>;
     chomp($ret);
-    die "Stopping failover." if ( lc($ret) !~ /y/ );
+    die "Stopping failover." if ( lc($ret) !~ /^y/ );
   }
 
   # If the last failover was done within 8 hours, we don't do failover
