@@ -208,11 +208,6 @@ sub stop_manager {
 "MHA Manager is not running on $self->{app}($MHA::ManagerConst::ST_NOT_RUNNING_S).\n";
       return 0;
     }
-    elsif ( $ret == $MHA::ManagerConst::ST_NOT_FOUND ) {
-      print
-"MHA Manager is not running on $self->{app}($MHA::ManagerConst::ST_NOT_FOUND_S).\n";
-      return 0;
-    }
     elsif ( $ret == $MHA::ManagerConst::ST_FAILOVER_RUNNING
       && !$self->{abort} )
     {
@@ -283,9 +278,6 @@ sub check_status {
       }
       print
 " ($MHA::ManagerConst::ST_PARTIALLY_RUNNING_S). Check ps output for details and kill it.\n";
-    }
-    elsif ( $ret == $MHA::ManagerConst::ST_NOT_FOUND ) {
-      print "$app is stopped($MHA::ManagerConst::ST_NOT_FOUND_S).\n";
     }
     elsif ( $ret == $MHA::ManagerConst::ST_INITIALIZING_MONITOR ) {
       print

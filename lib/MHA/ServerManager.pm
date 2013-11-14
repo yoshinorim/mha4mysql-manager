@@ -1389,12 +1389,10 @@ sub stop_io_threads {
   my $self         = shift;
   my $log          = $self->{logger};
   my @alive_slaves = $self->get_alive_slaves();
-  my $pm           = new Parallel::ForkManager( $#alive_slaves + 1 );
   foreach my $target (@alive_slaves) {
     $target->stop_io_thread($target);
     exit 0;
   }
-  $pm->wait_all_children;
   return 0;
 }
 
