@@ -339,10 +339,10 @@ sub wait_until_master_is_unreachable() {
 
     unless ($current_master) {
       if ($g_interactive) {
-        print "Master is not currently alive. Proceed? (yes/no): ";
+        print "Master is not currently alive. Proceed? (yes/NO): ";
         my $ret = <STDIN>;
         chomp($ret);
-        die "abort" if ( lc($ret) !~ /y/ );
+        die "abort" if ( lc($ret) !~ /^y/ );
       }
     }
     if (

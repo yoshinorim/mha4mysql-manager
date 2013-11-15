@@ -679,10 +679,10 @@ sub unlock_tables($) {
 sub reset_slave_all {
   my $self     = shift;
   my $dbhelper = $self->{dbhelper};
-  $dbhelper->reset_slave_master_host();
   if ( !$self->version_ge("5.5.0") ) {
     $dbhelper->reset_slave_by_change_master();
   }
+  $dbhelper->reset_slave_master_host();
 }
 
 # Let the server to return nothing at SHOW SLAVE STATUS (Without this, the new master still points to the previous master)
