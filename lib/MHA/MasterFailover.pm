@@ -168,7 +168,7 @@ sub check_settings($) {
   {
     $log->error(
       sprintf(
-"Detected dead master %s does mot match with specified dead master %s(%s:%s)!",
+"Detected dead master %s does not match with specified dead master %s(%s:%s)!",
         $m->get_hostinfo(),    $_dead_master_arg{hostname},
         $_dead_master_arg{ip}, $_dead_master_arg{port}
       )
@@ -203,7 +203,7 @@ sub check_settings($) {
   }
 
   # quick check that the dead server is really dead
-  $log->info("Checking master reachability via mysql(double check)..");
+  $log->info("Checking master reachability via MySQL (double check)...");
   if (
     my $rc = MHA::DBHelper::check_connection_fast_util(
       $dead_master->{hostname}, $dead_master->{port},
@@ -213,7 +213,7 @@ sub check_settings($) {
   {
     $log->error(
       sprintf(
-        "The master %s is reachable via mysql (error=%s) ! Stop failover.",
+        "The master %s is reachable via MySQL (error=%s) ! Stop failover.",
         $dead_master->get_hostinfo(), $rc
       )
     );
@@ -330,7 +330,7 @@ sub force_shutdown_internal($) {
     }
     $command .=
       $dead_master->get_ssh_args_if( 1, "orig", $_real_ssh_reachable );
-    $log->info("Executing master IP deactivatation script:");
+    $log->info("Executing master IP deactivation script:");
     $log->info("  $command");
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
     if ( $high == 0 && $low == 0 ) {
@@ -353,7 +353,7 @@ sub force_shutdown_internal($) {
   }
   else {
     $log->warning(
-"master_ip_failover_script is not set. Skipping invalidating dead master ip address."
+"master_ip_failover_script is not set. Skipping invalidating dead master IP address."
     );
   }
 
@@ -902,7 +902,7 @@ sub find_latest_base_slave_internal {
       else {
         $log->warning(
           sprintf(
-"The oldest master position from non-ignore_fail slaves is %s:%d. Checking whether latest slaves' relay logs from this position.",
+"The oldest master position from non-ignore_fail slaves is %s:%d. Checking whether latest slave's relay logs from this position.",
             $oldest_limit_mlf, $oldest_limit_mlp
           )
         );
@@ -957,7 +957,7 @@ sub select_new_master($$) {
     $latest_base_slave->{check_repl_delay} );
   unless ($new_master) {
     my $msg =
-"None of existing slaves matches as a new master. Maybe preferred node is misconfigured or all slaves are too behind.";
+"None of existing slaves matches as a new master. Maybe preferred node is misconfigured or all slaves are too  far behind.";
     $log->error($msg);
     $mail_body .= $msg . "\n";
     croak;
@@ -1577,7 +1577,7 @@ sub recover_master($$$$) {
   }
   else {
     $log->warning(
-"master_ip_failover_script is not set. Skipping taking over new master ip address."
+"master_ip_failover_script is not set. Skipping taking over new master IP address."
     );
   }
 

@@ -137,7 +137,7 @@ sub check_node_version {
       get_node_version( $log, $ssh_user, $ssh_host, $ssh_ip, $ssh_port );
     my $host = $ssh_host ? $ssh_host : $ssh_ip;
     croak
-"node version on $host not found! Maybe MHA Node package is not installed?\n"
+"node version on $host not found! Is MHA Node package installed ?\n"
       unless ($node_version);
     if ( $node_version < $MHA::ManagerConst::NODE_MIN_VERSION ) {
       $host = "local" unless ($host);

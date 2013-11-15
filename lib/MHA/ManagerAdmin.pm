@@ -132,7 +132,7 @@ sub check_status_file_pid($) {
       return $MHA::ManagerConst::ST_RUNNING;
     }
   }
-  croak "Got unknwon status: $status_string\n";
+  croak "Got unknown status: $status_string\n";
 }
 
 sub read_conf($) {
@@ -164,7 +164,7 @@ sub init {
   unless ( $self->{status_dir} ) {
     if ( $self->{conf} ) {
       croak
-"Failed to get status file directory(set in workdir parameter) from $self->{conf}.\n";
+"Failed to get status file directory (set in workdir parameter) from $self->{conf}.\n";
     }
     else {
       croak "Either --conf or --status_dir must be set.\n";

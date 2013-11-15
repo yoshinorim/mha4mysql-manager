@@ -101,7 +101,7 @@ sub identify_orig_master() {
   $orig_master = $_server_manager->get_current_alive_master();
   if ( !$orig_master ) {
     $log->error(
-"Failed to get currnet master. Maybe replication is misconfigured or configuration file is broken?"
+"Failed to get current master. Maybe replication is misconfigured or configuration file is broken?"
     );
     croak;
   }
