@@ -538,7 +538,7 @@ sub validate_slaves($$$) {
     if ( $_->{log_bin} eq '0' ) {
       $log->warning(
         sprintf(
-          " log-bin is not set on slave %s. This host can not be a master.\n",
+          " log-bin is not set on slave %s. This host cannot be a master.\n",
           $_->get_hostinfo() )
       );
     }

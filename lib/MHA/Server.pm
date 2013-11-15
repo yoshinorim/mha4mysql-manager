@@ -175,7 +175,7 @@ sub connect_check {
     if ( $mysql_err
       && grep ( $_ == $mysql_err, @MHA::ManagerConst::ALIVE_ERROR_CODES ) > 0 )
     {
-      $msg .= ", but this is not mysql crash. Check MySQL server settings.";
+      $msg .= ", but this is not a MySQL crash. Check MySQL server settings.";
       if ($log) {
         $log->error($msg);
         croak;

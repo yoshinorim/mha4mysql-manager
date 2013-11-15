@@ -342,7 +342,7 @@ sub secondary_check($) {
   if ($MHA::ManagerConst::USE_SSH_OPTIONS) {
     $command .= " --options='$MHA::ManagerConst::SSH_OPT_CHECK' ";
   }
-  $log->info("Executing seconary network check script: $command");
+  $log->info("Executing secondary network check script: $command");
   my ( $high, $low ) =
     MHA::ManagerUtil::exec_system( $command, $self->{logfile} );
   if ( $high == 0 && $low == 0 ) {
@@ -352,7 +352,7 @@ sub secondary_check($) {
   }
   if ( $high == 2 ) {
     $log->warning( "At least one of monitoring servers is not reachable "
-        . "from this script. This is likely network problem. Failover should "
+        . "from this script. This is likely a network problem. Failover should "
         . "not happen." );
     return $high;
   }
@@ -412,7 +412,7 @@ sub invoke_sec_check {
     }
     else {
       croak
-        "Forking secondary check process failed. Can't contine operation.\n";
+        "Forking secondary check process failed. Can't continue operation.\n";
     }
   }
 }
@@ -584,7 +584,7 @@ sub wait_until_unreachable($) {
               > 0 )
             {
               $log->info(
-"Got MySQL error $mysql_err, but this is not mysql crash. Continue health check.."
+"Got MySQL error $mysql_err, but this is not a MySQL crash. Continue health check.."
               );
               $self->sleep_until();
               next;
@@ -663,7 +663,7 @@ sub wait_until_unreachable($) {
           exit 0;
         };
         if ($@) {
-          my $msg = "Unexpected error heppened when pinging from child! $@";
+          my $msg = "Unexpected error happened when pinging from child! $@";
           $log->error($msg);
           undef $@;
           exit 1;

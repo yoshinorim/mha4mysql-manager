@@ -338,7 +338,7 @@ sub read_config($) {
     my $global_cfg = Config::Tiny->read($global_configfile)
       or croak "$global_configfile:$!\n";
 
-    $log->info("Reading default configuratoins from $self->{globalfile}..")
+    $log->info("Reading default configuration from $self->{globalfile}..")
       if ($log);
     $sd = $self->parse_server_default( $global_cfg->{"server default"} );
   }
@@ -350,14 +350,14 @@ sub read_config($) {
   }
 
   my $cfg = Config::Tiny->read($configfile) or croak "$configfile:$!\n";
-  $log->info("Reading application default configurations from $self->{file}..")
+  $log->info("Reading application default configuration from $self->{file}..")
     if ($log);
 
   # Read application default settings
   $sd = $self->parse_server( $cfg->{"server default"}, $sd );
 
   if ( defined( $sd->{init_conf_load_script} ) ) {
-    $log->info( "Updating application default configurations from "
+    $log->info( "Updating application default configuration from "
         . $sd->{init_conf_load_script}
         . ".." )
       if ($log);
@@ -371,7 +371,7 @@ sub read_config($) {
     $sd = $self->parse_server( $param, $sd );
   }
 
-  $log->info("Reading server configurations from $self->{file}..") if ($log);
+  $log->info("Reading server configuration from $self->{file}..") if ($log);
 
   my @blocks = sort keys(%$cfg);
   foreach my $block (@blocks) {
@@ -402,7 +402,7 @@ sub read_config($) {
   }
   unless (@servers) {
     my $msg =
-"No server is defined in the configuration file. Check configurations for details";
+"No server is defined in configurations file. Check configurations for details";
     $log->error($msg) if ($log);
     croak($msg);
   }
