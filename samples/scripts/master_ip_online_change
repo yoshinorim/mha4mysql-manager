@@ -31,23 +31,27 @@ use Data::Dumper;
 my $_tstart;
 my $_running_interval = 0.1;
 my (
-  $command,          $orig_master_host, $orig_master_ip,
-  $orig_master_port, $orig_master_user, $orig_master_password,
-  $new_master_host,  $new_master_ip,    $new_master_port,
-  $new_master_user,  $new_master_password
+  $command,          $orig_master_is_new_slave,
+  $orig_master_host, $orig_master_ip,       $orig_master_port,
+  $orig_master_user, $orig_master_password, $orig_master_ssh_user,
+  $new_master_host,  $new_master_ip,        $new_master_port,
+  $new_master_user,  $new_master_password,  $new_master_ssh_user,
 );
 GetOptions(
-  'command=s'              => \$command,
-  'orig_master_host=s'     => \$orig_master_host,
-  'orig_master_ip=s'       => \$orig_master_ip,
-  'orig_master_port=i'     => \$orig_master_port,
-  'orig_master_user=s'     => \$orig_master_user,
-  'orig_master_password=s' => \$orig_master_password,
-  'new_master_host=s'      => \$new_master_host,
-  'new_master_ip=s'        => \$new_master_ip,
-  'new_master_port=i'      => \$new_master_port,
-  'new_master_user=s'      => \$new_master_user,
-  'new_master_password=s'  => \$new_master_password,
+  'command=s'                => \$command,
+  'orig_master_is_new_slave' => \$orig_master_is_new_slave,
+  'orig_master_host=s'       => \$orig_master_host,
+  'orig_master_ip=s'         => \$orig_master_ip,
+  'orig_master_port=i'       => \$orig_master_port,
+  'orig_master_user=s'       => \$orig_master_user,
+  'orig_master_password=s'   => \$orig_master_password,
+  'orig_master_ssh_user=s'   => \$orig_master_ssh_user,
+  'new_master_host=s'        => \$new_master_host,
+  'new_master_ip=s'          => \$new_master_ip,
+  'new_master_port=i'        => \$new_master_port,
+  'new_master_user=s'        => \$new_master_user,
+  'new_master_password=s'    => \$new_master_password,
+  'new_master_ssh_user=s'    => \$new_master_ssh_user,
 );
 
 exit &main();

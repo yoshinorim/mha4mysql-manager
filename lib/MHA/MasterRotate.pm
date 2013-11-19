@@ -289,6 +289,9 @@ sub reject_update($$) {
     $command .= " --new_master_ssh_user=$new_master->{ssh_user}";
     $command .= $orig_master->get_ssh_args_if( 1, "orig", 1 );
     $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
+    if ($g_orig_master_is_new_slave) {
+      $command .= " --orig_master_is_new_slave";
+    }
     $log->info(
 "Executing master ip online change script to disable write on the current master:"
     );
@@ -401,6 +404,9 @@ sub switch_master($$$$) {
     $command .= " --new_master_ssh_user=$new_master->{ssh_user}";
     $command .= $orig_master->get_ssh_args_if( 1, "orig", 1 );
     $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
+    if ($g_orig_master_is_new_slave) {
+      $command .= " --orig_master_is_new_slave";
+    }
     $log->info(
 "Executing master ip online change script to allow write on the new master:"
     );
