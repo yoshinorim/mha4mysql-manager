@@ -1389,12 +1389,10 @@ sub stop_io_threads {
   my $self         = shift;
   my $log          = $self->{logger};
   my @alive_slaves = $self->get_alive_slaves();
-  my $pm           = new Parallel::ForkManager( $#alive_slaves + 1 );
   foreach my $target (@alive_slaves) {
     $target->stop_io_thread($target);
     exit 0;
   }
-  $pm->wait_all_children;
   return 0;
 }
 
@@ -1419,12 +1417,12 @@ sub get_current_servers_ascii {
   my $orig_master  = shift;
   my @alive_slaves = $self->get_alive_slaves();
 
-  my $str = "$orig_master->{hostname} (current master)";
+  my $str = "$orig_master->{hostname}:$orig_master->{port} (current master)";
   $str .= " ($orig_master->{node_label})"
     if ( $orig_master->{node_label} );
   $str .= "\n";
   foreach my $slave (@alive_slaves) {
-    $str .= " +--" . "$slave->{hostname}";
+    $str .= " +--" . "$slave->{hostname}:$slave->{port}";
     $str .= " ($slave->{node_label})" if ( $slave->{node_label} );
     $str .= "\n";
   }
@@ -1456,18 +1454,18 @@ sub print_servers_migration_ascii {
   $str .= $self->get_current_servers_ascii($orig_master);
 
   $str .= "To:\n";
-  $str .= "$new_master->{hostname} (new master)";
+  $str .= "$new_master->{hostname}:$new_master->{port} (new master)";
   $str .= " ($new_master->{node_label})"
     if ( $new_master->{node_label} );
   $str .= "\n";
   foreach my $slave (@alive_slaves) {
     next if ( $slave->{id} eq $new_master->{id} );
-    $str .= " +--" . "$slave->{hostname}";
+    $str .= " +--" . "$slave->{hostname}:$slave->{port}";
     $str .= " ($slave->{node_label})" if ( $slave->{node_label} );
     $str .= "\n";
   }
   if ($orig_master_is_new_slave) {
-    $str .= " +--" . "$orig_master->{hostname}";
+    $str .= " +--" . "$orig_master->{hostname}:$orig_master->{port}";
     $str .= " ($orig_master->{node_label})" if ( $orig_master->{node_label} );
     $str .= "\n";
   }
