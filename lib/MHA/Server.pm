@@ -233,11 +233,10 @@ sub connect_and_get_status {
 
   $self->{datadir} = $dbhelper->get_datadir();
 
-  if ( $self->version_ge("5.6.0") ) {
-    $self->{num_slave_workers} = $dbhelper->get_num_workers();
-  }
-  else {
-    $self->{num_slave_workers} = 0;
+  $self->{num_slave_workers} = $dbhelper->get_num_workers();
+  unless (defined($self->{num_slave_workers}))
+  {
+  	$self->{num_slave_workers} = 0;
   }
   $log->debug(
     sprintf(
