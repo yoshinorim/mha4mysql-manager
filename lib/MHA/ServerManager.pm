@@ -1342,7 +1342,7 @@ sub change_master_and_start_slave {
     ? $master->{ip}
     : $master->{hostname};
 
-  if ( $self->is_gtid_auto_pos_enabled() ) {
+  if ( $target->{has_gtid} and $self->is_gtid_auto_pos_enabled() ) {
     $dbhelper->change_master_gtid( $addr, $master->{port},
       $master->{repl_user}, $master->{repl_password} );
   }
