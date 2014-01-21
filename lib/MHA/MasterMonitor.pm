@@ -420,7 +420,7 @@ sub wait_until_master_is_unreachable() {
     $func_rc = 0;
   };
   if ($@) {
-    $log->error("Error happend on checking configurations. $@") if ($log);
+    $log->error("Error happened on checking configurations. $@") if ($log);
     undef $@;
     return $func_rc;
   }
