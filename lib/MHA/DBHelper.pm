@@ -68,9 +68,9 @@ use constant Auto_Position               => "Auto_Position";
 use constant Set_Long_Wait_Timeout_SQL => "SET wait_timeout=86400";
 use constant Show_One_Variable_SQL     => "SHOW GLOBAL VARIABLES LIKE ?";
 use constant Change_Master_SQL =>
-"CHANGE MASTER TO /*!50601 MASTER_AUTO_POSITION=0, */ MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
+"CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
 use constant Change_Master_NoPass_SQL =>
-"CHANGE MASTER TO /*!50601 MASTER_AUTO_POSITION=0, */ MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
+"CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_LOG_FILE='%s', MASTER_LOG_POS=%d";
 use constant Change_Master_Gtid_SQL =>
 "CHANGE MASTER TO MASTER_HOST='%s', MASTER_PORT=%d, MASTER_USER='%s', MASTER_PASSWORD='%s', MASTER_AUTO_POSITION=1";
 use constant Change_Master_Gtid_NoPass_SQL =>
@@ -133,6 +133,7 @@ sub new {
     dbh           => undef,
     connection_id => undef,
     has_gtid      => undef,
+	is_mariadb    => undef,
     @_,
   };
   return bless $self, $class;
@@ -293,7 +294,12 @@ sub get_num_workers($) {
 
 sub get_version($) {
   my $self = shift;
-  return MHA::SlaveUtil::get_version( $self->{dbh} );
+  my $value = MHA::SlaveUtil::get_version( $self->{dbh} );
+  if ($value =~ /MariaDB/)
+  {
+  	$self->{is_mariadb} = 1;
+  }
+  return $value;
 }
 
 sub is_relay_log_purge($) {
