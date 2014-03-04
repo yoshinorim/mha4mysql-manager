@@ -1257,7 +1257,7 @@ sub gen_diff_from_exec_to_read {
       $command .= " --debug ";
     }
     $logger->info("Executing command : $command");
-    my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ip};
+    my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_ip};
     $target->check_set_ssh_status( $logger, 1 ) if ( $target->{ssh_ok} >= 2 );
     if ( $target->{ssh_ok} == 0 ) {
       $logger->error("Failed to connect via SSH!");
@@ -1326,7 +1326,7 @@ sub apply_diff {
 
   $target->get_and_set_high_max_allowed_packet($logger);
 
-  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ip};
+  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_ip};
   $logger->info(
 "Connecting to the target slave host $target->{hostname}, running recover script.."
   );

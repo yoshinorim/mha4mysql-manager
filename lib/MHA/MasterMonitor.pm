@@ -109,7 +109,6 @@ sub check_master_ssh_env($) {
   my $target = shift;
   $log->info(
     "Checking SSH publickey authentication settings on the current master..");
-  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_host};
 
   my $ssh_reachable;
   if (
@@ -146,10 +145,10 @@ sub check_binlog($) {
     sprintf( "Checking recovery script configurations on %s..",
       $target->get_hostinfo() )
   );
-  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_host};
+  my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_ip};
   my $command       = get_binlog_check_command($target);
   $log->info("  Executing command: $command ");
-  $log->info("  Connecting to $ssh_user_host($target->{ssh_host}).. ");
+  $log->info("  Connecting to $ssh_user_host($target->{ssh_host}:$target->{ssh_port}).. ");
   my ( $high, $low ) =
     MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $target->{ssh_port},
     $command, $g_logfile );
