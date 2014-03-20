@@ -278,7 +278,7 @@ sub check_settings($) {
   }
 
   if ($g_interactive) {
-    print "Master $dead_master->{hostname} is dead. Proceed? (yes/NO): ";
+    print "Master " . $dead_master->get_hostinfo() . " is dead. Proceed? (yes/NO): ";
     my $ret = <STDIN>;
     chomp($ret);
     die "Stopping failover." if ( lc($ret) !~ /^y/ );
@@ -336,7 +336,7 @@ sub force_shutdown_internal($) {
     if ( $high == 0 && $low == 0 ) {
       $log->info(" done.");
       $mail_body .=
-        "Invalidated master IP address on $dead_master->{hostname}.\n";
+        "Invalidated master IP address on " . $dead_master->get_hostinfo() . "\n";
     }
     else {
       my $message =
@@ -410,8 +410,8 @@ sub force_shutdown($) {
 
   my $appname      = $_status_handler->{basename};
   my @alive_slaves = $_server_manager->get_alive_slaves();
-  $mail_subject = $appname . ": MySQL Master failover $dead_master->{hostname}";
-  $mail_body    = "Master $dead_master->{hostname} is down!\n\n";
+  $mail_subject = $appname . ": MySQL Master failover " . $dead_master->get_hostinfo();
+  $mail_body    = "Master " . $dead_master->get_hostinfo() . " is down!\n\n";
 
   $mail_body .= "Check MHA Manager logs at " . hostname();
   $mail_body .= ":$g_logfile" if ($g_logfile);
@@ -963,7 +963,7 @@ sub select_new_master($$) {
     croak;
   }
   $log->info( "New master is " . $new_master->get_hostinfo() );
-  $mail_body .= "Selected $new_master->{hostname} as a new master.\n";
+  $mail_body .= "Selected " . $new_master->get_hostinfo() . " as a new master.\n";
   $log->info("Starting master failover..");
   $_server_manager->print_servers_migration_ascii( $dead_master, $new_master );
   if ($g_interactive) {
@@ -1132,7 +1132,7 @@ sub recover_all_slaves_relay_logs {
             $target->get_hostinfo() )
         );
         $mail_body .=
-          "$target->{hostname}: This host has the latest relay log events.\n";
+          $target->get_hostinfo() . ": This host has the latest relay log events.\n";
       }
       elsif ( $exit_code == $GEN_DIFF_OK ) {
         $target->{gen_diff_ok} = 1;
@@ -1141,7 +1141,7 @@ sub recover_all_slaves_relay_logs {
             $target->get_hostinfo() )
         );
         $mail_body .=
-"$target->{hostname}: Generating differential relay logs up to $latest_base_slave->{hostname} succeeded.\n";
+$target->get_hostinfo() . ": Generating differential relay logs up to " . $latest_base_slave->get_hostinfo() . "succeeded.\n";
       }
       else {
         $diff_log_fail = 1;
@@ -1152,7 +1152,7 @@ sub recover_all_slaves_relay_logs {
           )
         );
         $mail_body .=
-"$target->{hostname}: Generating differential relay logs up to $latest_base_slave->{hostname} failed.\n";
+$target->get_hostinfo() . ": Generating differential relay logs up to " . $latest_base_slave->get_hostinfo() . " failed.\n";
       }
     }
   );
@@ -1546,7 +1546,7 @@ sub recover_master($$$$) {
       croak;
     }
   }
-  $mail_body .= "$new_master->{hostname}: OK: Applying all logs succeeded.\n";
+  $mail_body .= $new_master->get_hostinfo() . ": OK: Applying all logs succeeded.\n";
 
   if ( $new_master->{master_ip_failover_script} ) {
     my $command =
@@ -1560,11 +1560,11 @@ sub recover_master($$$$) {
     if ( $high == 0 && $low == 0 ) {
       $log->info(" OK.");
       $mail_body .=
-        "$new_master->{hostname}: OK: Activated master IP address.\n";
+        $new_master->get_hostinfo() . ": OK: Activated master IP address.\n";
     }
     else {
       my $message =
-"Failed to activate master IP address for $new_master->{hostname} with return code $high:$low";
+"Failed to activate master IP address for " . $new_master->get_hostinfo() . " with return code $high:$low";
       $log->error( " " . $message );
       $mail_body .= $message . "\n";
       if ( $high == 10 ) {
@@ -1587,7 +1587,7 @@ sub recover_master($$$$) {
   }
 
   $log->info("** Finished master recovery successfully.");
-  $mail_subject .= " to $new_master->{hostname}";
+  $mail_subject .= " to " . $new_master->get_hostinfo();
   return ( $master_log_file, $master_log_pos, $exec_gtid_set );
 }
 
@@ -1627,16 +1627,16 @@ sub recover_slaves_gtid_internal {
         $log->info(
           sprintf( "-- Slave on host %s started.", $target->get_hostinfo() ) );
         $mail_body .=
-"$target->{hostname}: OK: Slave started, replicating from $new_master->{hostname}.\n";
+$target->get_hostinfo() . ": OK: Slave started, replicating from " . $new_master->get_hostinfo() . "\n";
       }
       elsif ( $exit_code == 100 ) {
         $slave_starting_fail = 1;
-        $mail_body .= "$target->{hostname}: ERROR: Starting slave failed.\n";
+        $mail_body .= $target->get_hostinfo() . ": ERROR: Starting slave failed.\n";
       }
       elsif ( $exit_code == 120 ) {
         $slave_starting_fail = 1;
         $mail_body .=
-"$target->{hostname}: ERROR: Failed on waiting gtid exec set on master.\n";
+$target->get_hostinfo() . ": ERROR: Failed on waiting gtid exec set on master.\n";
       }
       else {
         $slave_starting_fail = 1;
@@ -1646,7 +1646,7 @@ sub recover_slaves_gtid_internal {
             $target->get_hostinfo(), $exit_code
           )
         );
-        $mail_body .= "$target->{hostname}: ERROR: Starting slave failed.\n";
+        $mail_body .= $target->get_hostinfo() . ": ERROR: Starting slave failed.\n";
       }
     }
   );
@@ -1753,7 +1753,7 @@ sub recover_slaves_internal {
             $target->get_hostinfo() )
         );
         $mail_body .=
-"$target->{hostname}: OK: Applying all logs succeeded. Slave started, replicating from $new_master->{hostname}.\n";
+$target->get_hostinfo() . ": OK: Applying all logs succeeded. Slave started, replicating from " . $new_master->get_hostinfo() . "\n";
       }
       elsif ( $exit_code == 10 ) {
         $target->{recover_ok} = 1;
@@ -1761,7 +1761,7 @@ sub recover_slaves_internal {
           sprintf( "-- Slave recovery on host %s succeeded.",
             $target->get_hostinfo() )
         );
-        $mail_body .= "$target->{hostname}: OK: Applying all logs succeeded.\n";
+        $mail_body .= $target->get_hostinfo() . ": OK: Applying all logs succeeded.\n";
       }
       elsif ( $exit_code == 20 ) {
         $skipping = 1;
@@ -1771,7 +1771,7 @@ sub recover_slaves_internal {
             $target->get_hostinfo() )
         );
         $mail_body .=
-"$target->{hostname}: ERROR: Skipping applying logs because diff log generation failed.\n";
+$target->get_hostinfo() . ": ERROR: Skipping applying logs because diff log generation failed.\n";
       }
       elsif ( $exit_code == 30 ) {
         $copy_fail = 1;
@@ -1780,12 +1780,12 @@ sub recover_slaves_internal {
             $target->get_hostinfo() )
         );
         $mail_body .=
-          "ERROR: $target->{hostname}: Sending dead master's binlog failed.\n";
+          $target->get_hostinfo() . ": ERROR: Sending dead master's binlog failed.\n";
       }
       elsif ( $exit_code == 100 ) {
         $slave_starting_fail = 1;
         $mail_body .=
-"$target->{hostname}: WARN: Applying all logs succeeded. But starting slave failed.\n";
+$target->get_hostinfo() . ": WARN: Applying all logs succeeded. But starting slave failed.\n";
       }
       else {
         $recover_fail = 1;
@@ -1795,7 +1795,7 @@ sub recover_slaves_internal {
             $target->get_hostinfo(), $exit_code
           )
         );
-        $mail_body .= "$target->{hostname}: ERROR: Applying logs failed.\n";
+        $mail_body .= $target->get_hostinfo() . ": ERROR: Applying logs failed.\n";
       }
     }
   );
@@ -1898,13 +1898,13 @@ sub report_failed_slaves($) {
   foreach (@dead_servers) {
     next if ( $_->{id} eq $dead_master->{id} );
     $mail_body .=
-      "$_->{hostname}: ERROR: Could not be reachable so couldn't recover.\n";
+      $_->get_hostinfo() . ": ERROR: Could not be reachable so couldn't recover.\n";
     $has_failed_slaves = 1;
   }
 
   my @failed_slaves = $_server_manager->get_failed_slaves();
   foreach (@failed_slaves) {
-    $mail_body .= "$_->{hostname}: ERROR: Slave failed so couldn't recover.\n";
+    $mail_body .= $_->get_hostinfo() . ": ERROR: Slave failed so couldn't recover.\n";
     $has_failed_slaves = 1;
   }
   return $has_failed_slaves;
@@ -1958,11 +1958,11 @@ sub recover_slaves($$$$$$) {
         $reset_slave_rc = $new_master->reset_slave_on_new_master();
         if ( $reset_slave_rc eq '0' ) {
           $mail_body .=
-            "$new_master->{hostname}: Resetting slave info succeeded.\n";
+            $new_master->get_hostinfo() . ": Resetting slave info succeeded.\n";
         }
         else {
           $mail_body .=
-            "$new_master->{hostname}: Resetting slave info failed.\n";
+            $new_master->get_hostinfo() . ": Resetting slave info failed.\n";
         }
       }
     }
