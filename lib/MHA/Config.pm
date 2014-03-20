@@ -271,9 +271,10 @@ sub parse_server {
   }
   $value{ping_type} = uc( $value{ping_type} );
   croak
-"Parameter ping_type must be either '$MHA::ManagerConst::PING_TYPE_CONNECT' or '$MHA::ManagerConst::PING_TYPE_SELECT'. Current value: $value{ping_type}\n"
+"Parameter ping_type must be either '$MHA::ManagerConst::PING_TYPE_CONNECT' or '$MHA::ManagerConst::PING_TYPE_SELECT' or '$MHA::ManagerConst::PING_TYPE_INSERT'. Current value: $value{ping_type}\n"
     if ( $value{ping_type} ne $MHA::ManagerConst::PING_TYPE_CONNECT
-    && $value{ping_type} ne $MHA::ManagerConst::PING_TYPE_SELECT );
+    && $value{ping_type} ne $MHA::ManagerConst::PING_TYPE_SELECT
+    && $value{ping_type} ne $MHA::ManagerConst::PING_TYPE_INSERT );
 
   $value{ping_interval} = $param_arg->{ping_interval};
   if ( !defined( $value{ping_interval} ) ) {

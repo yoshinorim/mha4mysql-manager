@@ -203,23 +203,27 @@ sub check_settings($) {
   }
 
   # quick check that the dead server is really dead
-  $log->info("Checking master reachability via MySQL (double check)...");
-  if (
-    my $rc = MHA::DBHelper::check_connection_fast_util(
-      $dead_master->{hostname}, $dead_master->{port},
-      $dead_master->{user},     $dead_master->{password}
-    )
-    )
-  {
-    $log->error(
-      sprintf(
-        "The master %s is reachable via MySQL (error=%s) ! Stop failover.",
-        $dead_master->get_hostinfo(), $rc
+  # not double check when ping_type is insert,
+  # because check_connection_fast_util can rerurn true if insert-check detects I/O failure.
+  if ($servers_config[0]->{ping_type} ne $MHA::ManagerConst::PING_TYPE_INSERT ) {
+    $log->info("Checking master reachability via MySQL(double check)...");
+    if (
+      my $rc = MHA::DBHelper::check_connection_fast_util(
+        $dead_master->{hostname}, $dead_master->{port},
+        $dead_master->{user},     $dead_master->{password}
       )
-    );
-    croak;
+    )
+    {
+      $log->error(
+        sprintf(
+          "The master %s is reachable via MySQL (error=%s) ! Stop failover.",
+          $dead_master->get_hostinfo(), $rc
+        )
+      );
+      croak;
+    }
+    $log->info(" ok.");
   }
-  $log->info(" ok.");
 
   $log->info("Alive Servers:");
   $_server_manager->print_alive_servers();
