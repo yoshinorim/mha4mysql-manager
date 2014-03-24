@@ -81,6 +81,7 @@ our $SSH_OPT_CHECK_DEFAULT = $SSH_OPT_CHECK;
 
 our $PING_TYPE_CONNECT = "CONNECT";
 our $PING_TYPE_SELECT  = "SELECT";
+our $PING_TYPE_INSERT  = "INSERT";
 
 our $DEFAULT_GLOBAL_CONF = "/etc/masterha_default.cnf";
 

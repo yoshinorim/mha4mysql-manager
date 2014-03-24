@@ -26,22 +26,28 @@ use Pod::Usage;
 use MHA::ManagerConst;
 
 my @monitoring_servers;
-my ( $help, $version, $ssh_user, $ssh_port, $ssh_options, $master_host,
-  $master_ip, $master_port );
+my (
+  $help,        $version,         $ssh_user,  $ssh_port,
+  $ssh_options, $master_host,     $master_ip, $master_port,
+  $master_user, $master_password, $ping_type
+);
 my $timeout = 5;
 
 $| = 1;
 GetOptions(
-  'help'             => \$help,
-  'version'          => \$version,
-  'secondary_host=s' => \@monitoring_servers,
-  'user=s'           => \$ssh_user,
-  'port=s'           => \$ssh_port,
-  'options=s'        => \$ssh_options,
-  'master_host=s'    => \$master_host,
-  'master_ip=s'      => \$master_ip,
-  'master_port=i'    => \$master_port,
-  'timeout=i'        => \$timeout,
+  'help'              => \$help,
+  'version'           => \$version,
+  'secondary_host=s'  => \@monitoring_servers,
+  'user=s'            => \$ssh_user,
+  'port=s'            => \$ssh_port,
+  'options=s'         => \$ssh_options,
+  'master_host=s'     => \$master_host,
+  'master_ip=s'       => \$master_ip,
+  'master_port=i'     => \$master_port,
+  'master_user=s'     => \$master_user,
+  'master_password=s' => \$master_password,
+  'ping_type=s'       => \$ping_type,
+  'timeout=i'         => \$timeout,
 );
 
 if ($version) {
@@ -93,6 +99,32 @@ foreach my $monitoring_server (@monitoring_servers) {
     next;
   }
   if ( $ret == 3 ) {
+    if ( defined $ping_type
+      && $ping_type eq $MHA::ManagerConst::PING_TYPE_INSERT )
+    {
+      my $ret_insert;
+      my $command_insert =
+          "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \'"
+        . "/usr/bin/mysql -u$master_user -p$master_password -h$master_host "
+        . "-e \"CREATE DATABASE IF NOT EXISTS infra; "
+        . "CREATE TABLE IF NOT EXISTS infra.chk_masterha (\\`key\\` tinyint NOT NULL primary key,\\`val\\` int(10) unsigned NOT NULL DEFAULT '0'\) engine=MyISAM; "
+        . "INSERT INTO infra.chk_masterha values (1,unix_timestamp()) ON DUPLICATE KEY UPDATE val=unix_timestamp()\"\'";
+      my $sigalrm_timeout = 3;
+      eval {
+        local $SIG{ALRM} = sub {
+          die "timeout.\n";
+        };
+        alarm $sigalrm_timeout;
+        $ret_insert = system($command_insert);
+        $ret_insert = $ret_insert >> 8;
+        alarm 0;
+      };
+      if ( $@ || $ret_insert != 0 ) {
+        print
+"Monitoring server $monitoring_server is reachable, Master is not writable from $monitoring_server. OK.\n";
+        next;
+      }
+    }
     print "Master is reachable from $monitoring_server!\n";
     $exit_code = 3;
     last;
