@@ -202,17 +202,18 @@ sub check_settings($) {
     croak;
   }
 
-  # quick check that the dead server is really dead
-  # not double check when ping_type is insert,
-  # because check_connection_fast_util can rerurn true if insert-check detects I/O failure.
-  if ($servers_config[0]->{ping_type} ne $MHA::ManagerConst::PING_TYPE_INSERT ) {
+# quick check that the dead server is really dead
+# not double check when ping_type is insert,
+# because check_connection_fast_util can rerurn true if insert-check detects I/O failure.
+  if ( $servers_config[0]->{ping_type} ne $MHA::ManagerConst::PING_TYPE_INSERT )
+  {
     $log->info("Checking master reachability via MySQL(double check)...");
     if (
       my $rc = MHA::DBHelper::check_connection_fast_util(
         $dead_master->{hostname}, $dead_master->{port},
         $dead_master->{user},     $dead_master->{password}
       )
-    )
+      )
     {
       $log->error(
         sprintf(

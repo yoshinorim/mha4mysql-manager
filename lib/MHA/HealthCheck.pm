@@ -108,10 +108,11 @@ sub connect {
       MHA::SlaveUtil::get_monitor_advisory_lock( $self->{dbh},
       $advisory_lock_timeout );
     if ( $rc == 0 ) {
-      if ($self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_INSERT) {
+      if ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_INSERT ) {
         my $child_exit_code;
         eval {
-          $child_exit_code = $self->fork_exec(sub { $self->ping_insert() }, "MySQL Ping($self->{ping_type})");
+          $child_exit_code = $self->fork_exec( sub { $self->ping_insert() },
+            "MySQL Ping($self->{ping_type})" );
         };
         if ($@) {
           my $msg = "Unexpected error heppened when pinging! $@";
@@ -290,8 +291,12 @@ sub ping_insert($) {
   eval {
     $dbh->{RaiseError} = 1;
     $dbh->do("CREATE DATABASE IF NOT EXISTS infra");
-    $dbh->do("CREATE TABLE IF NOT EXISTS infra.chk_masterha (`key` tinyint NOT NULL primary key,`val` int(10) unsigned NOT NULL DEFAULT '0') engine=MyISAM");
-    $dbh->do("INSERT INTO infra.chk_masterha values (1,unix_timestamp()) ON DUPLICATE KEY UPDATE val=unix_timestamp()");
+    $dbh->do(
+"CREATE TABLE IF NOT EXISTS infra.chk_masterha (`key` tinyint NOT NULL primary key,`val` int(10) unsigned NOT NULL DEFAULT '0') engine=MyISAM"
+    );
+    $dbh->do(
+"INSERT INTO infra.chk_masterha values (1,unix_timestamp()) ON DUPLICATE KEY UPDATE val=unix_timestamp()"
+    );
   };
   if ($@) {
     my $msg = "Got error on MySQL insert ping: ";
@@ -679,16 +684,19 @@ sub wait_until_unreachable($) {
       my $child_exit_code;
       eval {
         if ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_CONNECT ) {
-          $child_exit_code = $self->fork_exec(sub { $self->ping_connect() }, "MySQL Ping($self->{ping_type})");
+          $child_exit_code = $self->fork_exec( sub { $self->ping_connect() },
+            "MySQL Ping($self->{ping_type})" );
         }
         elsif ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_SELECT ) {
-          $child_exit_code = $self->fork_exec(sub { $self->ping_select() }, "MySQL Ping($self->{ping_type})");
+          $child_exit_code = $self->fork_exec( sub { $self->ping_select() },
+            "MySQL Ping($self->{ping_type})" );
         }
         elsif ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_INSERT ) {
-          $child_exit_code = $self->fork_exec(sub { $self->ping_insert() }, "MySQL Ping($self->{ping_type})");
+          $child_exit_code = $self->fork_exec( sub { $self->ping_insert() },
+            "MySQL Ping($self->{ping_type})" );
         }
         else {
-              die "Not supported ping_type!\n";
+          die "Not supported ping_type!\n";
         }
       };
       if ($@) {
@@ -699,6 +707,7 @@ sub wait_until_unreachable($) {
       }
 
       if ( $child_exit_code == 0 ) {
+
         #ping ok
         $self->update_status_ok();
         if ( $error_count > 0 ) {
