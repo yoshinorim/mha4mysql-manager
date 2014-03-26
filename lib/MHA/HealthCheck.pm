@@ -77,6 +77,7 @@ sub connect {
   my $advisory_lock_timeout = shift;
   my $log_connect_error     = shift;
   my $raise_error           = shift;
+  my $no_advisory_lock      = shift;
   if ( !defined($connect_timeout) ) {
     $connect_timeout = $self->{interval};
   }
@@ -104,9 +105,12 @@ sub connect {
     $log->debug("Connected on master.");
     $self->{dbh}->{InactiveDestroy} = 1;
     $self->set_wait_timeout($wait_timeout);
-    my $rc =
-      MHA::SlaveUtil::get_monitor_advisory_lock( $self->{dbh},
-      $advisory_lock_timeout );
+    my $rc = 0;
+    unless ($no_advisory_lock) {
+      $log->debug("Trying to get advisory lock..");
+      $rc = MHA::SlaveUtil::get_monitor_advisory_lock( $self->{dbh},
+        $advisory_lock_timeout );
+    }
     if ( $rc == 0 ) {
       if ( $self->{ping_type} eq $MHA::ManagerConst::PING_TYPE_INSERT ) {
         my $child_exit_code;
@@ -636,7 +640,8 @@ sub wait_until_unreachable($) {
     while (1) {
       $self->{_tstart} = [gettimeofday];
       if ( $self->{_need_reconnect} ) {
-        my ( $rc, $mysql_err ) = $self->connect();
+        my ( $rc, $mysql_err ) =
+          $self->connect( undef, undef, undef, undef, undef, $error_count );
         if ($rc) {
           if ($mysql_err) {
             if (
@@ -654,7 +659,7 @@ sub wait_until_unreachable($) {
           $log->warning("Connection failed $error_count time(s)..");
           $self->handle_failing();
 
-          if ( $error_count >= 3 ) {
+          if ( $error_count >= 4 ) {
             $ssh_reachable = $self->is_ssh_reachable();
             $master_is_down = 1 if ( $self->is_secondary_down() );
             last if ($master_is_down);
@@ -723,6 +728,7 @@ sub wait_until_unreachable($) {
       else {
 
         # failed on fork_exec
+        $error_count++;
         $self->{_need_reconnect} = 1;
         $self->handle_failing();
       }
