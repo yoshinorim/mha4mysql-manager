@@ -7,6 +7,8 @@ my $testcase_name=$ARGV[0];
 my $expected_records=$ARGV[1];
 my $expected_hosts=$ARGV[2];
 
+sleep 2;
+
 unless($expected_hosts) {
   $expected_hosts="h=127.0.0.1,P=10001 h=127.0.0.1,P=10002 h=127.0.0.1,P=10003 h=127.0.0.1,P=10004"
 }

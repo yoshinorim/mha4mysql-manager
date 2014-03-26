@@ -2,10 +2,10 @@
 
 # Can't recover S3 due to lacking relay logs
 
-mysql $S1 -e "set global max_binlog_size=8192"
-mysql $S2 -e "set global max_binlog_size=8192"
-mysql $S3 -e "set global max_binlog_size=8192"
-mysql $S4 -e "set global max_binlog_size=8192"
+mysql $S1 -e "set global max_relay_log_size=8192"
+mysql $S2 -e "set global max_relay_log_size=8192"
+mysql $S3 -e "set global max_relay_log_size=8192"
+mysql $S4 -e "set global max_relay_log_size=8192"
 
 perl insert.pl $MP $MYSQL_USER $MYSQL_PWD 2 1000 0
 

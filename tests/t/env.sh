@@ -4,9 +4,7 @@ if [ "A$VERSION" = "A" ]; then
   export VERSION=5.5.16
 fi
 
-if [ "A$VERSION_DIR" = "A" ]; then
-  export VERSION_DIR=5_5_16
-fi
+export VERSION_DIR=`echo $VERSION | perl -pi -e 's/\./\_/g'`
 
 if [ "A$USE_ROW_FORMAT" = "A" ]; then
   #export MASTER_OPTIONS="--my_file=my.cnf"

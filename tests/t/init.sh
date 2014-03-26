@@ -26,7 +26,7 @@ fi
 rm -f /var/tmp/*127.0.0.1_*.binlog
 rm -f /var/tmp/*127.0.0.1_*.log
 rm -f /var/tmp/mha_test*
-
+sleep 1
 mysql $M -e "source grant.sql"
 mysql $M -e "source grant_nopass.sql"
 mysql $S1 -e "source grant_nopass.sql"

@@ -2,10 +2,10 @@
 
 # Can't recover S3 and S4 due to lacking relay logs
 
-mysql $S1 -e "set global max_binlog_size=8192"
-mysql $S2 -e "set global max_binlog_size=8192"
-mysql $S3 -e "set global max_binlog_size=8192"
-mysql $S4 -e "set global max_binlog_size=8192"
+mysql $S1 -e "set global max_relay_log_size=8192"
+mysql $S2 -e "set global max_relay_log_size=8192"
+mysql $S3 -e "set global max_relay_log_size=8192"
+mysql $S4 -e "set global max_relay_log_size=8192"
 
 perl insert.pl $MP $MYSQL_USER $MYSQL_PWD 2 1000 0
 
@@ -14,7 +14,7 @@ mysql $S4 test -e "stop slave io_thread"
 
 perl insert.pl $MP $MYSQL_USER $MYSQL_PWD 1001 3000 0
 
-mysql $S2 test -e "stop slave io_thread"
+#mysql $S2 test -e "stop slave io_thread"
 mysql $M test -e "insert into t1 values(99999, 300, 'bbbaaaaaaa');"
 
 ./run_bg.sh --conf=$CONF_IGNORE
