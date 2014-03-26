@@ -234,9 +234,8 @@ sub connect_and_get_status {
   $self->{datadir} = $dbhelper->get_datadir();
 
   $self->{num_slave_workers} = $dbhelper->get_num_workers();
-  unless (defined($self->{num_slave_workers}))
-  {
-  	$self->{num_slave_workers} = 0;
+  unless ( defined( $self->{num_slave_workers} ) ) {
+    $self->{num_slave_workers} = 0;
   }
   $log->debug(
     sprintf(

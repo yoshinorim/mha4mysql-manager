@@ -31,11 +31,11 @@ use Data::Dumper;
 my $_tstart;
 my $_running_interval = 0.1;
 my (
-  $command,          $orig_master_is_new_slave,
-  $orig_master_host, $orig_master_ip,       $orig_master_port,
-  $orig_master_user, $orig_master_password, $orig_master_ssh_user,
-  $new_master_host,  $new_master_ip,        $new_master_port,
-  $new_master_user,  $new_master_password,  $new_master_ssh_user,
+  $command,              $orig_master_is_new_slave, $orig_master_host,
+  $orig_master_ip,       $orig_master_port,         $orig_master_user,
+  $orig_master_password, $orig_master_ssh_user,     $new_master_host,
+  $new_master_ip,        $new_master_port,          $new_master_user,
+  $new_master_password,  $new_master_ssh_user,
 );
 GetOptions(
   'command=s'                => \$command,

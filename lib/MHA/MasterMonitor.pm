@@ -148,7 +148,9 @@ sub check_binlog($) {
   my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_ip};
   my $command       = get_binlog_check_command($target);
   $log->info("  Executing command: $command ");
-  $log->info("  Connecting to $ssh_user_host($target->{ssh_host}:$target->{ssh_port}).. ");
+  $log->info(
+    "  Connecting to $ssh_user_host($target->{ssh_host}:$target->{ssh_port}).. "
+  );
   my ( $high, $low ) =
     MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $target->{ssh_port},
     $command, $g_logfile );

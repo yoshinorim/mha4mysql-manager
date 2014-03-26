@@ -133,7 +133,7 @@ sub new {
     dbh           => undef,
     connection_id => undef,
     has_gtid      => undef,
-	is_mariadb    => undef,
+    is_mariadb    => undef,
     @_,
   };
   return bless $self, $class;
@@ -293,11 +293,10 @@ sub get_num_workers($) {
 }
 
 sub get_version($) {
-  my $self = shift;
+  my $self  = shift;
   my $value = MHA::SlaveUtil::get_version( $self->{dbh} );
-  if ($value =~ /MariaDB/)
-  {
-  	$self->{is_mariadb} = 1;
+  if ( $value =~ /MariaDB/ ) {
+    $self->{is_mariadb} = 1;
   }
   return $value;
 }
