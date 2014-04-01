@@ -1,6 +1,12 @@
-mha4mysql-manager (0.55-0) squeeze; urgency=low
+mha4mysql-manager (0.56-0) squeeze; urgency=low
 
   * (Note: All changelogs are written here: http://code.google.com/p/mysql-master-ha/wiki/ReleaseNotes )
+  * Version 0.56
+
+ -- Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>  Tue, 1 Apr 2014 00:00:00 +0000
+
+mha4mysql-manager (0.55-0) squeeze; urgency=low
+
   * Version 0.55
 
  -- Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>  Wed, 12 Dec 2012 00:00:00 +0000
