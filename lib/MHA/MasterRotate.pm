@@ -564,6 +564,10 @@ sub switch_slaves($$$$$$) {
 
   if ($g_orig_master_is_new_slave) {
     $log->info("Starting orig master as a new slave..");
+    if ( exists( $new_master->{use_ip_for_change_master} ) ) {
+      $orig_master->{use_ip_for_change_master} =
+        $new_master->{use_ip_for_change_master};
+    }
     if (
       $_server_manager->change_master_and_start_slave(
         $orig_master, $new_master, $master_log_file, $master_log_pos
