@@ -45,6 +45,7 @@ my $_server_manager;
 my $g_lock;
 my $_start_datetime;
 my $g_holder;
+my $g_lease;
 
 sub exit_by_signal {
   $log->info("Got terminate signal during paxos_lock. Exit.");
@@ -125,9 +126,9 @@ sub do_lock() {
         }
         my $ssh_user_host = $target->{ssh_user} . '@' . $target->{ssh_ip};
         if ($g_lock) {
-            $command = "try_paxos_lock --workdir=$g_workdir --holder=$g_holder";
+            $command = "try_paxos_lock --workdir=$g_workdir --holder=$g_holder --lease=$g_lease";
         } else {
-            $command = "try_paxos_lock --workdir=$g_workdir --holder=$g_holder --unlock";
+            $command = "try_paxos_lock --workdir=$g_workdir --holder=$g_holder --lease=$g_lease --unlock";
         }
         my ( $high, $low ) =
             MHA::ManagerUtil::exec_ssh_cmd( $ssh_user_host, $target->{ssh_port},
@@ -172,10 +173,15 @@ sub main {
         'lock'                       => \$g_lock,
         'unlock'                     => \$unlock,
         'holder=s'                   => \$g_holder,
+        'lease=i'                   => \$g_lease,
     );
     
     unless ($g_holder) {
         croak "holder is not specified.\n";
+    }
+    
+    unless ($g_lease) {
+        $g_lease = 3600;
     }
     
     if ($unlock) {
