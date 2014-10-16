@@ -1568,12 +1568,13 @@ sub recover_master($$$$) {
 
   if ( $new_master->{master_ip_failover_script} ) {
     my $command =
-"$new_master->{master_ip_failover_script} --command=start --ssh_user=$new_master->{ssh_user} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip} --orig_master_port=$dead_master->{port} --new_master_host=$new_master->{hostname} --new_master_ip=$new_master->{ip} --new_master_port=$new_master->{port} --new_master_user=$new_master->{escaped_user} --new_master_password=$new_master->{escaped_password}";
+"$new_master->{master_ip_failover_script} --command=start --ssh_user=$new_master->{ssh_user} --orig_master_host=$dead_master->{hostname} --orig_master_ip=$dead_master->{ip} --orig_master_port=$dead_master->{port} --new_master_host=$new_master->{hostname} --new_master_ip=$new_master->{ip} --new_master_port=$new_master->{port} --new_master_user=$new_master->{escaped_user}";
     $command .=
       $dead_master->get_ssh_args_if( 1, "orig", $_real_ssh_reachable );
     $command .= $new_master->get_ssh_args_if( 2, "new", 1 );
     $log->info("Executing master IP activate script:");
-    $log->info("  $command");
+    $log->info("  $command --new_master_password=xxx");
+    $command .= " --new_master_password=$new_master->{escaped_password}";
     my ( $high, $low ) = MHA::ManagerUtil::exec_system( $command, $g_logfile );
     if ( $high == 0 && $low == 0 ) {
       $log->info(" OK.");
