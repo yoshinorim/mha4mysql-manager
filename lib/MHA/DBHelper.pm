@@ -763,6 +763,7 @@ sub get_threads_util {
     next if ( defined($query_time) && $query_time < $running_time_threshold );
     next if ( defined($command)    && $command =~ /^Binlog Dump/ );
     next if ( defined($user)       && $user eq "system user" );
+    next if ( defined($user)       && $user eq "event_scheduler" );
 
     if ( $type >= 1 ) {
       next if ( defined($command) && $command eq "Sleep" );
