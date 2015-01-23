@@ -51,6 +51,7 @@ my $g_skip_ssh_check;
 my $g_ignore_fail_on_start = 0;
 my $_master_node_version;
 my $_server_manager;
+my $_master_ping;
 my $RETRY = 100;
 my $_status_handler;
 my $log;
@@ -60,6 +61,8 @@ sub exit_by_signal {
   eval {
     MHA::NodeUtil::drop_file_if( $_status_handler->{status_file} )
       unless ($g_check_only);
+    $_server_manager->disconnect_all() if ($_server_manager);
+    $_master_ping->disconnect_if()     if ($_master_ping);
   };
   if ($@) {
     $log->error("Got Error: $@");
@@ -429,7 +432,6 @@ sub wait_until_master_is_unreachable() {
 
   # master ping. This might take hours/days/months..
   $func_rc = 1;
-  my $master_ping;
   eval {
     my $ssh_check_command;
     if (!$_server_manager->is_gtid_auto_pos_enabled()
@@ -443,7 +445,7 @@ sub wait_until_master_is_unreachable() {
     }
     $log->debug("SSH check command: $ssh_check_command");
 
-    $master_ping = new MHA::HealthCheck(
+    $_master_ping = new MHA::HealthCheck(
       user                   => $current_master->{user},
       password               => $current_master->{password},
       ip                     => $current_master->{ip},
@@ -464,14 +466,14 @@ sub wait_until_master_is_unreachable() {
     );
     $log->info(
       sprintf( "Set master ping interval %d seconds.",
-        $master_ping->get_ping_interval() )
+        $_master_ping->get_ping_interval() )
     );
     if ( $current_master->{secondary_check_script} ) {
-      $master_ping->set_secondary_check_script(
+      $_master_ping->set_secondary_check_script(
         $current_master->{secondary_check_script} );
       $log->info(
         sprintf( "Set secondary check script: %s",
-          $master_ping->get_secondary_check_script() )
+          $_master_ping->get_secondary_check_script() )
       );
     }
     else {
@@ -484,7 +486,7 @@ sub wait_until_master_is_unreachable() {
       sprintf( "Starting ping health check on %s..",
         $current_master->get_hostinfo() )
     );
-    ( $ret, $ssh_reachable ) = $master_ping->wait_until_unreachable();
+    ( $ret, $ssh_reachable ) = $_master_ping->wait_until_unreachable();
     if ( $ret eq '2' ) {
       $log->error(
 "Target master's advisory lock is already held by someone. Please check whether you monitor the same master from multiple monitoring processes."
@@ -599,6 +601,7 @@ sub wait_until_master_is_dead {
 
     $log->info("Master is down!");
     $log->info("Terminating monitoring script.");
+    $_server_manager->disconnect_all() if ($_server_manager);
     return $MHA::ManagerConst::MASTER_DEAD_RC;
   };
   if ($@) {

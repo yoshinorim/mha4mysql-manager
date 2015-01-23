@@ -160,7 +160,7 @@ sub disable_read_only($) {
 }
 
 sub connect_check {
-  my ( $self, $num_retries, $log ) = @_;
+  my ( $self, $num_retries, $log, $disconnect ) = @_;
 
   my $dbhelper = new MHA::DBHelper();
   my $dbh =
@@ -187,8 +187,13 @@ sub connect_check {
     $self->{dead} = 1;
     return $MHA::ManagerConst::MYSQL_DEAD_RC;
   }
-  $self->{dbhelper} = $dbhelper;
-  $self->{dbh}      = $dbh;
+  if ($disconnect) {
+    $dbh->disconnect();
+  }
+  else {
+    $self->{dbhelper} = $dbhelper;
+    $self->{dbh}      = $dbh;
+  }
   return 0;
 }
 

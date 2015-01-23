@@ -164,6 +164,7 @@ sub check_connection_fast_util {
   my $password = shift;
   my $dbh      = connect_util( $host, $port, $user, $password );
   if ( defined($dbh) ) {
+    $dbh->disconnect();
     return "1:Connection Succeeded";
   }
   else {
