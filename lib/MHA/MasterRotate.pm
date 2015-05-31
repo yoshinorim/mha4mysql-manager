@@ -295,8 +295,10 @@ sub reject_update($$) {
     $log->info(
 "Executing master ip online change script to disable write on the current master:"
     );
-    $log->info("  $command --orig_master_password=xxx --new_master_password=xxx");
-    $command .= " --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password}";
+    $log->info(
+      "  $command --orig_master_password=xxx --new_master_password=xxx");
+    $command .=
+" --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password}";
     my ( $high, $low ) = MHA::ManagerUtil::exec_system($command);
 
     if ( $high == 0 && $low == 0 ) {
@@ -411,8 +413,10 @@ sub switch_master($$$$) {
     $log->info(
 "Executing master ip online change script to allow write on the new master:"
     );
-    $log->info("  $command --orig_master_password=xxx --new_master_password=xxx");
-    $command .= " --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password}";
+    $log->info(
+      "  $command --orig_master_password=xxx --new_master_password=xxx");
+    $command .=
+" --orig_master_password=$orig_master->{escaped_password} --new_master_password=$new_master->{escaped_password}";
     my ( $high, $low ) = MHA::ManagerUtil::exec_system($command);
 
     if ( $high == 0 && $low == 0 ) {
