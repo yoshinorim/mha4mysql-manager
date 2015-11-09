@@ -294,7 +294,7 @@ sub connect_all_and_read_server_status($$$$) {
           $connection_checker->finish($MHA::ManagerConst::MYSQL_DEAD_RC);
         }
       }
-      my $rc = $target->connect_check( 2, undef, 1 );
+      my $rc = $target->connect_check( 2, $log, 1 );
       $connection_checker->finish($rc);
     };
     if ($@) {
