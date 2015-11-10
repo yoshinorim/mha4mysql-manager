@@ -13,6 +13,7 @@ Requires: perl(Config::Tiny)
 Requires: perl(Log::Dispatch)
 Requires: perl(Parallel::ForkManager)
 Requires: mha4mysql-node >= 0.54
+Requires: perl(DBD::mysql) >= 4.031
 Source0: mha4mysql-manager-%{version}.tar.gz
 
 %description
