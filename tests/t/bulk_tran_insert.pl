@@ -7,7 +7,7 @@ use DBI;
 my ( $port, $user, $pass, $start, $stop, $commit_interval ) = @ARGV;
 my $pk             = $start;
 my $committed_rows = 0;
-my $dsn            = "DBI:mysql:test;host=127.0.0.1;port=$port";
+my $dsn            = "DBI:mysql:test;host=[127.0.0.1];port=$port";
 my $dbh            = DBI->connect( $dsn, $user, $pass );
 if ( $commit_interval == 1 ) {
   $dbh->do("SET AUTOCOMMIT=1");

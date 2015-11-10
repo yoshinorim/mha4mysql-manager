@@ -7,7 +7,7 @@ use DBI;
 my ( $port, $user, $pass, $start, $stop, $single_tran, $rollback ) = @ARGV;
 $rollback = 0 if ( !defined($rollback) );
 
-my $dsn = "DBI:mysql:test;host=127.0.0.1;port=$port";
+my $dsn = "DBI:mysql:test;host=[127.0.0.1];port=$port";
 my $dbh = DBI->connect( $dsn, $user, $pass );
 
 my $sth;
