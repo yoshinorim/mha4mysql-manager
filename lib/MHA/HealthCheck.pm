@@ -296,7 +296,7 @@ sub ping_insert($) {
     $dbh->{RaiseError} = 1;
     $dbh->do("CREATE DATABASE IF NOT EXISTS infra");
     $dbh->do(
-"CREATE TABLE IF NOT EXISTS infra.chk_masterha (`key` tinyint NOT NULL primary key,`val` int(10) unsigned NOT NULL DEFAULT '0') engine=InnoDB"
+"CREATE TABLE IF NOT EXISTS infra.chk_masterha (`key` tinyint NOT NULL primary key,`val` int(10) unsigned NOT NULL DEFAULT '0')"
     );
     $dbh->do(
 "INSERT INTO infra.chk_masterha values (1,unix_timestamp()) ON DUPLICATE KEY UPDATE val=unix_timestamp()"
