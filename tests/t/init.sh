@@ -33,7 +33,7 @@ mysql $S1 -e "source grant_nopass.sql"
 mysql $S2 -e "source grant_nopass.sql"
 mysql $S3 -e "source grant_nopass.sql"
 mysql $S4 -e "source grant_nopass.sql"
-mysql $M test -e "create table t1 (id int primary key, value int, value2 text) engine=innodb; insert into t1 values(1, 100, 'abc');"
+mysql $M test -e "create table t1 (id int primary key, value int, value2 text); insert into t1 values(1, 100, 'abc');"
 
 wait_until_count $0 $S1P 1
 wait_until_count $0 $S2P 1
