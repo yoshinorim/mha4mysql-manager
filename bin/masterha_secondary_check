@@ -105,7 +105,7 @@ foreach my $monitoring_server (@monitoring_servers) {
       my $ret_insert;
       my $command_insert =
           "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \'"
-        . "/usr/bin/mysql -u$master_user -p$master_password -h$master_host "
+        . "/usr/bin/mysql -u$master_user -p$master_password -h$master_host -P$master_port "
         . "-e \"CREATE DATABASE IF NOT EXISTS infra; "
         . "CREATE TABLE IF NOT EXISTS infra.chk_masterha (\\`key\\` tinyint NOT NULL primary key,\\`val\\` int(10) unsigned NOT NULL DEFAULT '0'\) engine=InnoDB; "
         . "INSERT INTO infra.chk_masterha values (1,unix_timestamp()) ON DUPLICATE KEY UPDATE val=unix_timestamp()\"\'";
