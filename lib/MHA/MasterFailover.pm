@@ -1504,7 +1504,7 @@ sub recover_master_internal($$) {
   my $target       = shift;
   my $latest_slave = shift;
   $log->info();
-  $log->info("* Phase 3.3: New Master Diff Log Generation Phase..\n");
+  $log->info("* Phase 3.4: New Master Diff Log Generation Phase..\n");
   $log->info();
   my $rc = recover_relay_logs( $target, $latest_slave );
   if ( $rc && $rc != $GEN_DIFF_OK ) {
@@ -1514,7 +1514,7 @@ sub recover_master_internal($$) {
     return;
   }
   $log->info();
-  $log->info("* Phase 3.4: Master Log Apply Phase..\n");
+  $log->info("* Phase 3.5: Master Log Apply Phase..\n");
   $log->info();
   $log->info(
     "*NOTICE: If any error happens from this phase, manual recovery is needed."
