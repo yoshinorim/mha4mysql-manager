@@ -11,7 +11,7 @@ Package: mha4mysql-manager
 Architecture: all
 Depends: ${misc:Depends}, ${perl:Depends},
   libdbi-perl,
-  libdbd-mysql-perl,
+  libdbd-mysql-perl (>= 4.031),
   libconfig-tiny-perl,
   liblog-dispatch-perl,
   libparallel-forkmanager-perl,

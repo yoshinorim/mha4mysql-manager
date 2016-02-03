@@ -21,7 +21,7 @@ read($in, $buf, -s $file);
 close($in);
 unlink $file;
 
-my $dsn = "DBI:mysql:test;host=127.0.0.1;port=$port";
+my $dsn = "DBI:mysql:test;host=[127.0.0.1];port=$port";
 my $dbh = DBI->connect( $dsn, $user, $pass );
 
 my $value= $buf;
