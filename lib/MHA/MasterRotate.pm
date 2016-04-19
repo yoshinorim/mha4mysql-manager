@@ -623,7 +623,7 @@ sub do_master_online_switch {
     my $new_master = identify_new_master($orig_master);
     
     if ($orig_master->{id} == $new_master->{id}){
-      croak "new_master is equal as orig_master, no need to switch.."
+      croak "new_master is equal as orig_master, no need to switch master!\n";
     }
     
     $log->info("** Phase 1: Configuration Check Phase completed.\n");
