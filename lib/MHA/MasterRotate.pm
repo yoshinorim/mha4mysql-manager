@@ -193,16 +193,21 @@ sub check_filter {
   if ($g_orig_master_is_new_slave) {
     $orig_master->read_repl_filter();
 
+    $orig_master->{Replicate_Do_DB}             ||= "";
+    $orig_master->{Replicate_Ignore_DB}         ||= "";
     $orig_master->{Replicate_Do_Table}          ||= "";
     $orig_master->{Replicate_Ignore_Table}      ||= "";
     $orig_master->{Replicate_Wild_Do_Table}     ||= "";
     $orig_master->{Replicate_Wild_Ignore_Table} ||= "";
+    $new_master->{Replicate_Do_DB}              ||= "";
+    $new_master->{Replicate_Ignore_DB}          ||= "";
     $new_master->{Replicate_Do_Table}           ||= "";
     $new_master->{Replicate_Ignore_Table}       ||= "";
     $new_master->{Replicate_Wild_Do_Table}      ||= "";
     $new_master->{Replicate_Wild_Ignore_Table}  ||= "";
 
-    if ( $orig_master->{Replicate_Do_Table} ne $new_master->{Replicate_Do_Table}
+    if ( $orig_master->{Replicate_Do_DB} ne $new_master->{Replicate_Do_DB}
+      || $orig_master->{Replicate_Do_Table} ne $new_master->{Replicate_Do_Table}
       || $orig_master->{Replicate_Ignore_Table} ne
       $new_master->{Replicate_Ignore_Table}
       || $orig_master->{Replicate_Wild_Do_Table} ne
