@@ -166,11 +166,11 @@ sub check_binlog($) {
 }
 
 sub check_slave_env() {
-  my @alive_servers = $_server_manager->get_alive_slaves();
+  my @alive_slaves = $_server_manager->get_alive_slaves();
   $log->info(
 "Checking SSH publickey authentication and checking recovery script configurations on all alive slave servers.."
   );
-  foreach my $s (@alive_servers) {
+  foreach my $s (@alive_slaves) {
     my $ssh_user_host = $s->{ssh_user} . '@' . $s->{ssh_ip};
     my $command =
 "apply_diff_relay_logs --command=test --slave_user=$s->{escaped_user} --slave_host=$s->{hostname} --slave_ip=$s->{ip} --slave_port=$s->{port} --workdir=$s->{remote_workdir} --target_version=$s->{mysql_version} --manager_version=$MHA::ManagerConst::VERSION";
