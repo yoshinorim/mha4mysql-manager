@@ -407,19 +407,19 @@ sub validate_repl_filter($$) {
   my $replicate_wild_do_table;
   my $replicate_wild_ignore_table;
   foreach (@slaves) {
-    $replicate_do_db = $_->{Replicate_Do_DB} unless ($replicate_do_db);
+    $replicate_do_db = $_->{Replicate_Do_DB} unless (defined($replicate_do_db));
     $replicate_ignore_db = $_->{Replicate_Ignore_DB}
-      unless ($replicate_ignore_db);
-    $replicate_do_table = $_->{Replicate_Do_Table} unless ($replicate_do_table);
+      unless (defined($replicate_ignore_db));
+    $replicate_do_table = $_->{Replicate_Do_Table} unless (defined($replicate_do_table));
     $replicate_ignore_table = $_->{Replicate_Ignore_Table}
-      unless ($replicate_ignore_table);
+      unless (defined($replicate_ignore_table));
     $replicate_wild_do_table = $_->{Replicate_Wild_Do_Table}
-      unless ($replicate_wild_do_table);
+      unless (defined($replicate_wild_do_table));
     $replicate_wild_ignore_table = $_->{Replicate_Wild_Ignore_Table}
-      unless ($replicate_wild_ignore_table);
+      unless (defined($replicate_wild_ignore_table));
     if ( $_->{log_bin} ) {
-      $binlog_do_db     = $_->{Binlog_Do_DB}     unless ($binlog_do_db);
-      $binlog_ignore_db = $_->{Binlog_Ignore_DB} unless ($binlog_ignore_db);
+      $binlog_do_db     = $_->{Binlog_Do_DB}     unless (defined($binlog_do_db));
+      $binlog_ignore_db = $_->{Binlog_Ignore_DB} unless (defined($binlog_ignore_db));
     }
     if ( $replicate_do_db ne $_->{Replicate_Do_DB}
       || $replicate_ignore_db ne $_->{Replicate_Ignore_DB}
