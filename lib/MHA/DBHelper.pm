@@ -152,7 +152,7 @@ sub connect_util {
   my $port     = shift;
   my $user     = shift;
   my $password = shift;
-  my $dsn      = "DBI:mysql:;host=[$host];port=$port;mysql_connect_timeout=1";
+  my $dsn      = "DBI:mysql:;host=$host;port=$port;mysql_connect_timeout=1";
   my $dbh      = DBI->connect( $dsn, $user, $password, { PrintError => 0 } );
   return $dbh;
 }
@@ -195,7 +195,7 @@ sub connect {
 
   $self->{dbh} = undef;
   unless ( $self->{dsn} ) {
-    $self->{dsn} = "DBI:mysql:;host=[$host];port=$port;mysql_connect_timeout=4";
+    $self->{dsn} = "DBI:mysql:;host=$host;port=$port;mysql_connect_timeout=4";
   }
   my $defaults = {
     PrintError => 0,
