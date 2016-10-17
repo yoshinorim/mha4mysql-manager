@@ -1157,7 +1157,7 @@ sub get_bad_candidate_masters($$$) {
     if (
          $_->{no_master} >= 1
       || $_->{log_bin} eq '0'
-      || $_->{oldest_major_version} eq '0'
+      || ($_->{oldest_major_version} eq '0' && $_->{skip_version_check} eq '0')
       || (
         $latest_slave
         && ( $check_replication_delay
