@@ -264,8 +264,6 @@ sub parse_server {
     if ( !defined( $value{skip_init_ssh_check} ) );
 
   $value{skip_version_check} = $param_arg->{skip_version_check};
-  $value{skip_version_check} = $default->{skip_version_check}
-    if ( !defined( $value{skip_version_check} ) );
   $value{skip_version_check} = 0
     if ( !defined( $value{skip_version_check} ) );
 
