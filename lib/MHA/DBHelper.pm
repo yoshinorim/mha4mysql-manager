@@ -409,7 +409,11 @@ sub flush_tables_nolog($) {
 
 sub flush_tables_with_read_lock($) {
   my $self = shift;
-  return $self->execute(Flush_Tables_With_Read_Lock_SQL);
+  my $result = $self->execute(Set_Readonly_SQL);
+    if ($result) {
+       $result = $self->execute(Flush_Tables_With_Read_Lock_SQL);
+    }
+  return $result;
 }
 
 sub unlock_tables($) {
