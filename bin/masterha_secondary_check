@@ -88,7 +88,7 @@ foreach my $monitoring_server (@monitoring_servers) {
   my $command =
 "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \"perl -e "
     . "\\\"use IO::Socket::INET; my \\\\\\\$sock = IO::Socket::INET->new"
-    . "(PeerAddr => \\\\\\\"$master_host\\\\\\\", PeerPort=> $master_port, "
+    . "(PeerAddr => \\\\\\\"$master_ip\\\\\\\", PeerPort=> $master_port, "
     . "Proto =>'tcp', Timeout => $timeout); if(\\\\\\\$sock) { close(\\\\\\\$sock); "
     . "exit 3; } exit 0;\\\" \"";
   my $ret = system($command);
