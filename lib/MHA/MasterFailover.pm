@@ -2288,7 +2288,7 @@ sub main {
     $error_code = 1;
   }
   if ($error_code) {
-    finalize_on_error();lo
+    finalize_on_error();
   }
   return $error_code;
 }
