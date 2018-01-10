@@ -95,7 +95,7 @@ sub connect {
   }
   my $log = $self->{logger};
   $self->{dbh} = DBI->connect(
-    "DBI:mysql:;host=[$self->{ip}];"
+    "DBI:mysql:;host=$self->{ip};"
       . "port=$self->{port};mysql_connect_timeout=$connect_timeout",
     $self->{user},
     $self->{password},
