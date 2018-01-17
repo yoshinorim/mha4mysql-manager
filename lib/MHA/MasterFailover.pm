@@ -301,7 +301,7 @@ sub check_settings($) {
       my ( $sec, $min, $hh, $dd, $mm, $yy, $week, $yday, $opt ) =
         localtime($lastts);
       my $t = sprintf( "%04d/%02d/%02d %02d:%02d:%02d",
-        $yy + 1900, $mm + 1, $dd, $hh, $mm, $sec );
+        $yy + 1900, $mm + 1, $dd, $hh, $min, $sec );
       my $msg =
           "Last failover was done at $t."
         . " Current time is too early to do failover again. If you want to "
