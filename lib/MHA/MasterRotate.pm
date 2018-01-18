@@ -47,6 +47,7 @@ my $g_flush_tables = 2;
 my $g_orig_master_is_new_slave;
 my $g_running_updates_limit = 1;
 my $g_running_seconds_limit = 10;
+my $g_seconds_behind_master = 30;
 my $g_skip_lock_all_tables;
 my $g_remove_orig_master_conf;
 my $g_interactive = 1;
@@ -153,7 +154,7 @@ sub identify_orig_master() {
     }
   }
 
-  $_server_manager->check_replication_health($g_running_updates_limit);
+  $_server_manager->check_replication_health($g_seconds_behind_master);
 
   my @threads =
     $orig_master->get_running_update_threads( $g_running_updates_limit + 1 );
@@ -718,6 +719,7 @@ sub main {
     'orig_master_is_new_slave' => \$g_orig_master_is_new_slave,
     'running_updates_limit=i'  => \$g_running_updates_limit,
     'running_seconds_limit=i'  => \$g_running_seconds_limit,
+    'seconds_behind_master=1'  => \$g_seconds_behind_master,
     'skip_lock_all_tables'     => \$g_skip_lock_all_tables,
     'remove_dead_master_conf'  => \$g_remove_orig_master_conf,
     'remove_orig_master_conf'  => \$g_remove_orig_master_conf,
