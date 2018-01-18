@@ -719,7 +719,7 @@ sub main {
     'orig_master_is_new_slave' => \$g_orig_master_is_new_slave,
     'running_updates_limit=i'  => \$g_running_updates_limit,
     'running_seconds_limit=i'  => \$g_running_seconds_limit,
-    'seconds_behind_master=1'  => \$g_seconds_behind_master,
+    'seconds_behind_master=i'  => \$g_seconds_behind_master,
     'skip_lock_all_tables'     => \$g_skip_lock_all_tables,
     'remove_dead_master_conf'  => \$g_remove_orig_master_conf,
     'remove_orig_master_conf'  => \$g_remove_orig_master_conf,
