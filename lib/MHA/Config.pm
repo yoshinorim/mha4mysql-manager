@@ -337,7 +337,7 @@ sub read_config($) {
 
   if ( -f $global_configfile ) {
     my $global_cfg = Config::Tiny->read($global_configfile)
-      or croak "Unable to parse/read configuration file: $configfile: $!\n";
+      or croak "Unable to parse/read configuration file: $global_configfile: $!\n";
 
     $log->info("Reading default configuration from $self->{globalfile}..")
       if ($log);
