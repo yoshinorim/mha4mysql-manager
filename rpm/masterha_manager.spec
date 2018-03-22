@@ -1,6 +1,6 @@
 Summary: Master High Availability Manager and Tools for MySQL, Manager Package
 Name: mha4mysql-manager
-Version: 0.57
+Version: 0.58
 Release: 0%{?dist}
 License: GPL v2
 Vendor: DeNA Co.,Ltd.
@@ -58,6 +58,14 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 
 %changelog
+* Thu Mar 22 2018 Kenny.Gryp <kenny@goss.be>
+- Several bugfixes
+- IPV6 support
+- super_read_only support
+- enforce_storage_engine support
+- Version 0.58
+- With the help of Marcelo Altmann <marcelo.altmann@percona.com>
+
 * Sun May 31 2015 Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
 - (Note: All changelogs are written here: http://code.google.com/p/mysql-master-ha/wiki/ReleaseNotes )
 - Version 0.57
