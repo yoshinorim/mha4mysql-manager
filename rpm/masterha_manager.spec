@@ -1,6 +1,6 @@
 Summary: Master High Availability Manager and Tools for MySQL, Manager Package
 Name: mha4mysql-manager
-Version: 0.57
+Version: 0.58
 Release: 0%{?dist}
 License: GPL v2
 Vendor: DeNA Co.,Ltd.
