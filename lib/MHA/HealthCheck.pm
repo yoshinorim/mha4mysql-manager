@@ -120,7 +120,7 @@ sub connect {
             "MySQL Ping($self->{ping_type})" );
         };
         if ($@) {
-          my $msg = "Unexpected error heppened when pinging! $@";
+          my $msg = "Unexpected error happened when pinging! $@";
           $log->error($msg);
           undef $@;
           $child_exit_code = 1;
