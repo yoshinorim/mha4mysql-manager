@@ -111,6 +111,8 @@ use constant Master_Pos_Wait_NoTimeout_SQL =>
   "SELECT MASTER_POS_WAIT(?,?,0) AS Result";
 use constant Gtid_Wait_NoTimeout_SQL =>
   "SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,0) AS Result";
+use constant Gtid_Subset_SQL  => "SELECT GTID_SUBSET(?,?) AS Result";
+use constant Gtid_Substract_SQL  => "SELECT GTID_SUBTRACT(?,?) AS Result";
 use constant Get_Connection_Id_SQL  => "SELECT CONNECTION_ID() AS Value";
 use constant Flush_Tables_Nolog_SQL => "FLUSH NO_WRITE_TO_BINLOG TABLES";
 use constant Flush_Tables_With_Read_Lock_SQL => "FLUSH TABLES WITH READ LOCK";
@@ -874,6 +876,26 @@ sub gtid_wait($$) {
   my $exec_gtid = shift;
   my $sth       = $self->{dbh}->prepare(Gtid_Wait_NoTimeout_SQL);
   $sth->execute($exec_gtid);
+  my $href = $sth->fetchrow_hashref;
+  return $href->{Result};
+}
+
+sub gtid_subset($$$) {
+  my $self        = shift;
+  my $gtid_subset = shift;
+  my $gtid_set    = shift;
+  my $sth         = $self->{dbh}->prepare(Gtid_Subset_SQL);
+  $sth->execute( $gtid_subset, $gtid_set );
+  my $href = $sth->fetchrow_hashref;
+  return $href->{Result};
+}
+
+sub gtid_substract($$$) {
+  my $self        = shift;
+  my $gtid_set    = shift;
+  my $gtid_subset = shift;
+  my $sth         = $self->{dbh}->prepare(Gtid_Substract_SQL);
+  $sth->execute( $gtid_set, $gtid_subset );
   my $href = $sth->fetchrow_hashref;
   return $href->{Result};
 }

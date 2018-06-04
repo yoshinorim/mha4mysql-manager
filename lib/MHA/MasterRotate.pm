@@ -40,6 +40,7 @@ use Parallel::ForkManager;
 my $g_global_config_file = $MHA::ManagerConst::DEFAULT_GLOBAL_CONF;
 my $g_config_file;
 my $g_check_only;
+my $g_check_for_errant_transactions;
 my $g_new_master_host;
 my $g_new_master_port = 3306;
 my $g_workdir;
@@ -622,6 +623,11 @@ sub do_master_online_switch {
   eval {
     $orig_master = identify_orig_master();
     my $new_master = identify_new_master($orig_master);
+
+    if ($g_check_for_errant_transactions) {
+      $_server_manager->check_for_errant_transactions( $orig_master, $new_master );
+    }
+
     $log->info("** Phase 1: Configuration Check Phase completed.\n");
     $log->info();
 
@@ -724,6 +730,7 @@ sub main {
     'remove_dead_master_conf'  => \$g_remove_orig_master_conf,
     'remove_orig_master_conf'  => \$g_remove_orig_master_conf,
     'flush_tables=i'           => \$g_flush_tables,
+    'check_for_errant_transactions' => \$g_check_for_errant_transactions,
   );
   if ( $#ARGV >= 0 ) {
     print "Unknown options: ";
