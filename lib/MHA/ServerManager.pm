@@ -247,6 +247,36 @@ sub set_logger($$) {
   $self->{logger} = $logger;
 }
 
+sub check_for_errant_transactions($$$) {
+  my $self             = shift;
+  my $orig_master      = shift;
+  my $new_master       = shift;
+  my $log              = $self->{logger};
+
+  my %new_master_slave_status = $new_master->{dbhelper}->check_slave_status();
+  $log->debug( sprintf( "Executed_Gtid_Set on new_master (%s:%d) are:\n%s",
+    $new_master->{hostname}, $new_master->{port}, $new_master_slave_status{Executed_Gtid_Set} ) );
+
+  my ( undef, undef, undef, undef, $orig_master_executed_gtid ) =
+    $orig_master->{dbhelper}->show_master_status();
+
+  $log->debug( sprintf("Executed_Gtid_Set on orig_master (%s:%d) are:\n%s",
+    $orig_master->{hostname}, $orig_master->{port}, $orig_master_executed_gtid ) );
+
+  my $is_subset = $new_master->{dbhelper}->gtid_subset( $new_master_slave_status{Executed_Gtid_Set}, $orig_master_executed_gtid );
+
+  if ($is_subset ne '1') {
+    my $errant_transaction_gtids = $new_master->{dbhelper}->gtid_substract( $new_master_slave_status{Executed_Gtid_Set}, $orig_master_executed_gtid );
+    $log->warn( sprintf( "Found errant transactions on slave to be promoted (%s:%d) ! Errant transactions found: %s", $new_master->{hostname}, $new_master->{port}, $errant_transaction_gtids ) );
+    $log->info( sprintf( "Suggested fix: mysqlslavetrx --gtid-set=%s --verbose --slaves=user:password@%s:%s", $errant_transaction_gtids, $orig_master->{hostname}, $orig_master->{port} ) );
+    $log->error( "Solve errant transactions and try again. Aborting ..." );
+    croak;
+  } else {
+    $log->info( sprintf( "Slave to be promoted (%s:%d) has no errant transactions in regard to current master (%s:%d).", $new_master->{hostname}, $new_master->{port}, $orig_master->{hostname}, $orig_master->{port} ) );
+    return;
+  }
+}
+
 sub connect_all_and_read_server_status($$$$) {
   my $self             = shift;
   my $dead_master_host = shift;
