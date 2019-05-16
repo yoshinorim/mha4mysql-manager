@@ -95,33 +95,47 @@ foreach my $monitoring_server (@monitoring_servers) {
   $ret = $ret >> 8;
   if ( $ret == 0 ) {
     print
-"Monitoring server $monitoring_server is reachable, Master is not reachable from $monitoring_server. OK.\n";
+"Monitoring server $monitoring_server is reachable, Master is not reachable from $monitoring_server.\n";
     next;
   }
   if ( $ret == 3 ) {
-    if ( defined $ping_type
-      && $ping_type eq $MHA::ManagerConst::PING_TYPE_INSERT )
-    {
-      my $ret_insert;
-      my $command_insert =
-          "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \'"
-        . "/usr/bin/mysql -u$master_user -p$master_password -h$master_host -P$master_port "
-        . "-e \"CREATE DATABASE IF NOT EXISTS infra; "
-        . "CREATE TABLE IF NOT EXISTS infra.chk_masterha (\\`key\\` tinyint NOT NULL primary key,\\`val\\` int(10) unsigned NOT NULL DEFAULT '0'\); "
-        . "INSERT INTO infra.chk_masterha values (1,unix_timestamp()) ON DUPLICATE KEY UPDATE val=unix_timestamp()\"\'";
+    if ( defined $ping_type ) {
+          my $ret_query;
+      my $command_query;
+
+      if ( $ping_type eq $MHA::ManagerConst::PING_TYPE_INSERT ) {
+        $command_query = "CREATE DATABASE IF NOT EXISTS infra;"
+           . "CREATE TABLE IF NOT EXISTS infra.chk_masterha (\\`key\\` tinyint NOT NULL primary key,\\`val\\` int(10) unsigned NOT NULL DEFAULT '0'\); "
+           . "INSERT INTO infra.chk_masterha values (1,unix_timestamp()) ON DUPLICATE KEY UPDATE val=unix_timestamp();";
+      } elsif ( $ping_type eq $MHA::ManagerConst::PING_TYPE_SELECT || $ping_type eq $MHA::ManagerConst::PING_TYPE_CONNECT ) {
+        $command_query = "SELECT 1 As Value;";
+      } else {
+        print "Unsupported ping_type ($ping_type)";
+        $exit_code = 2;
+        last;
+      }
+
       my $sigalrm_timeout = 3;
+      my $command_ssh =
+            "ssh $MHA::ManagerConst::SSH_OPT_CHECK -p $ssh_port $ssh_user_host \'"
+          . "/usr/bin/mysql -u$master_user -p$master_password -h$master_host -P$master_port "
+          . "-e \"$command_query\"\'";
+        
       eval {
-        local $SIG{ALRM} = sub {
-          die "timeout.\n";
-        };
-        alarm $sigalrm_timeout;
-        $ret_insert = system($command_insert);
-        $ret_insert = $ret_insert >> 8;
-        alarm 0;
+            local $SIG{ALRM} = sub {
+                die "timeout.\n";
+            };
+
+            alarm $sigalrm_timeout;
+            $ret_query = system($command_ssh);
+            $ret_query = $ret_query >> 8;
+            alarm 0;
       };
-      if ( $@ || $ret_insert != 0 ) {
-        print
-"Monitoring server $monitoring_server is reachable, Master is not writable from $monitoring_server. OK.\n";
+
+      if ( $@ || $ret_query != 0 ) {
+        print "Monitoring server $monitoring_server is reachable, Master is not "
+        . ( ($ping_type eq $MHA::ManagerConst::PING_TYPE_INSERT ) ? "writeable" : "selectable")
+        . " from $monitoring_server.\n";
         next;
       }
     }
