@@ -132,7 +132,7 @@ foreach my $monitoring_server (@monitoring_servers) {
   else {
     print "Monitoring server $monitoring_server is NOT reachable!\n";
     $exit_code = 2;
-    last;
+    next;
   }
 }
 
