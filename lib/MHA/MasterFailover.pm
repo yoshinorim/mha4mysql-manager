@@ -2259,7 +2259,7 @@ sub main {
     'skip_disable_read_only'     => \$g_skip_disable_read_only,
     'wait_until_gtid_in_sync=i'  => \$g_wait_until_gtid_in_sync,
     'ignore_binlog_server_error' => \$g_ignore_binlog_server_error,
-    'g_new_master_ignore_no_master' => \$g_new_master_ignore_no_master,
+    'new_master_ignore_no_master' => \$g_new_master_ignore_no_master,
   );
   setpgrp( 0, $$ ) unless ($g_interactive);
 
