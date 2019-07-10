@@ -43,9 +43,16 @@ sub new {
     orig_master      => undef,
     new_master       => undef,
     logger           => undef,
+    ignore_no_master => 0,
     @_,
   };
   return bless $self, $class;
+}
+
+sub set_ignore_no_master($$) {
+  my $self        = shift;
+  my $ignore_no_master_setting = shift;
+  $self->{ignore_no_master} = $ignore_no_master_setting;
 }
 
 sub set_servers($$) {
@@ -1155,7 +1162,7 @@ sub get_bad_candidate_masters($$$) {
   my @ret_servers = ();
   foreach (@servers) {
     if (
-         $_->{no_master} >= 1
+         ($self->{ignore_no_master} == 0 && $_->{no_master} >= 1)
       || $_->{log_bin} eq '0'
       || $_->{oldest_major_version} eq '0'
       || (
