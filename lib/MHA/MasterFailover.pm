@@ -34,6 +34,7 @@ use MHA::FileStatus;
 use MHA::ManagerUtil;
 use MHA::ManagerConst;
 use MHA::HealthCheck;
+use MHA::SlaveUtil;
 use File::Basename;
 use Parallel::ForkManager;
 use Sys::Hostname;
@@ -300,7 +301,7 @@ sub check_settings($) {
       my ( $sec, $min, $hh, $dd, $mm, $yy, $week, $yday, $opt ) =
         localtime($lastts);
       my $t = sprintf( "%04d/%02d/%02d %02d:%02d:%02d",
-        $yy + 1900, $mm + 1, $dd, $hh, $mm, $sec );
+        $yy + 1900, $mm + 1, $dd, $hh, $min, $sec );
       my $msg =
           "Last failover was done at $t."
         . " Current time is too early to do failover again. If you want to "
@@ -1419,7 +1420,18 @@ sub apply_binlog_to_master($) {
   my $err_file = "$g_workdir/mysql_from_binlog.err";
   my $command =
 "cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+
+  $log->info("Checking if super_read_only is defined and turned on..");
+  my ($super_read_only_enabled, $dbh) = 
+          MHA::SlaveUtil::check_if_super_read_only($target->{hostname}, $target->{ip}, $target->{port}, $target->{user}, $target->{password});
+  if ($super_read_only_enabled) {
+    MHA::SlaveUtil::disable_super_read_only($dbh);
+  } else {
+    $log->info(" not present or turned off, ignoring.\n");
+  }
+
   $log->info("Applying differential binlog $_diff_binary_log ..");
+
   if ( my $rc = system($command) ) {
     my ( $high, $low ) = MHA::NodeUtil::system_rc($rc);
     $log->error("FATAL: applying log files failed with rc $high:$low!");
@@ -1430,10 +1442,21 @@ sub apply_binlog_to_master($) {
       )
     );
     $log->error(`tail -200 $err_file`);
+
+    if ($super_read_only_enabled) {
+      $log->info("Enabling super_read_only again after failure\n");
+      MHA::SlaveUtil::enable_super_read_only($dbh);
+    }
+
     croak;
   }
   else {
     $log->info("Differential log apply from binlog server succeeded.");
+  }
+
+  if ($super_read_only_enabled) {
+    $log->info("Enabling super_read_only again after applying\n");
+    MHA::SlaveUtil::enable_super_read_only($dbh);
   }
   return 0;
 }
@@ -1504,7 +1527,7 @@ sub recover_master_internal($$) {
   my $target       = shift;
   my $latest_slave = shift;
   $log->info();
-  $log->info("* Phase 3.3: New Master Diff Log Generation Phase..\n");
+  $log->info("* Phase 3.4: New Master Diff Log Generation Phase..\n");
   $log->info();
   my $rc = recover_relay_logs( $target, $latest_slave );
   if ( $rc && $rc != $GEN_DIFF_OK ) {
@@ -1514,7 +1537,7 @@ sub recover_master_internal($$) {
     return;
   }
   $log->info();
-  $log->info("* Phase 3.4: Master Log Apply Phase..\n");
+  $log->info("* Phase 3.5: Master Log Apply Phase..\n");
   $log->info();
   $log->info(
     "*NOTICE: If any error happens from this phase, manual recovery is needed."

@@ -94,8 +94,13 @@ sub connect {
     $raise_error = 0;
   }
   my $log = $self->{logger};
+  my $dsn_host = $self->{ip} =~ m{:} ? '[' . $self->{ip} . ']' : $self->{ip};
   $self->{dbh} = DBI->connect(
+<<<<<<< HEAD
     "DBI:mysql:;host=$self->{ip};"
+=======
+    "DBI:mysql:;host=$dsn_host;"
+>>>>>>> upstream/master
       . "port=$self->{port};mysql_connect_timeout=$connect_timeout",
     $self->{user},
     $self->{password},

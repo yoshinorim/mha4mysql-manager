@@ -1,3 +1,14 @@
+mha4mysql-manager (0.58-0) squeeze; urgency=low
+
+  * Several bugfixes
+  * IPV6 support
+  * super_read_only support
+  * enforce_storage_engine support
+  * Version 0.58
+  * With the help of Marcelo Altmann <marcelo.altmann@percona.com>
+
+ -- Kenny Gryp <kenny@goss.be>  Thu, 22 Mar 2018 00:00:00 +0000
+
 mha4mysql-manager (0.56-0) squeeze; urgency=low
 
   * (Note: All changelogs are written here: http://code.google.com/p/mysql-master-ha/wiki/ReleaseNotes )
