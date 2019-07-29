@@ -1418,8 +1418,15 @@ sub recover_slave {
 sub apply_binlog_to_master($) {
   my $target   = shift;
   my $err_file = "$g_workdir/mysql_from_binlog.err";
+  #在GTID模式下只能是少丢，原失处理的GTID日志重放会报错
+  if ($is_gtid_auto_pos_enabled){
   my $command =
-"cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+  "mysqlbinlog $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+  }else{
+        my $command =
+  "cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+ }
+
 
   $log->info("Checking if super_read_only is defined and turned on..");
   my ($super_read_only_enabled, $dbh) = 
