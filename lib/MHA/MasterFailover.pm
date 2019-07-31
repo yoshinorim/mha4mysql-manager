@@ -56,6 +56,7 @@ my $g_skip_change_master;
 my $g_skip_disable_read_only;
 my $g_wait_until_gtid_in_sync = 1;
 my $g_ignore_binlog_server_error;
+my $g_new_master_ignore_no_master = 0;
 my $_real_ssh_reachable;
 my $_saved_file_suffix;
 my $_start_datetime;
@@ -147,6 +148,9 @@ sub check_settings($) {
   $_status_handler->update_status($MHA::ManagerConst::ST_FAILOVER_RUNNING_S);
 
   $_server_manager = new MHA::ServerManager( servers => \@servers_config );
+  if ($g_new_master_ignore_no_master == 1) {
+    $_server_manager->set_ignore_no_master($g_new_master_ignore_no_master);
+  }
   $_server_manager->set_logger($log);
   if ($g_interactive) {
     $_server_manager->connect_all_and_read_server_status();
@@ -2255,6 +2259,7 @@ sub main {
     'skip_disable_read_only'     => \$g_skip_disable_read_only,
     'wait_until_gtid_in_sync=i'  => \$g_wait_until_gtid_in_sync,
     'ignore_binlog_server_error' => \$g_ignore_binlog_server_error,
+    'new_master_ignore_no_master=i' => \$g_new_master_ignore_no_master,
   );
   setpgrp( 0, $$ ) unless ($g_interactive);
 
@@ -2274,6 +2279,9 @@ sub main {
     $master_port = 3306;
     print
       "--dead_master_port=<dead_master_port> is not set. Using $master_port.\n";
+  }
+  if ($g_new_master_ignore_no_master == 1) {
+    print "--select new master will ignore no_master section.\n";
   }
 
   $_dead_master_arg{hostname} = $master_host;
