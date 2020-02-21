@@ -97,7 +97,9 @@ sub connect {
   my $dsn_host = $self->{ip} =~ m{:} ? '[' . $self->{ip} . ']' : $self->{ip};
   $self->{dbh} = DBI->connect(
     "DBI:mysql:;host=$dsn_host;"
-      . "port=$self->{port};mysql_connect_timeout=$connect_timeout",
+      . "port=$self->{port};mysql_connect_timeout=$connect_timeout;"
+      . "mysql_read_timeout=$connect_timeout;"
+      . "mysql_write_timeout=$connect_timeout",
     $self->{user},
     $self->{password},
     { PrintError => 0, RaiseError => $raise_error }
