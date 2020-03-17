@@ -26,7 +26,7 @@ use Getopt::Long;
 use MHA::DBHelper;
 
 my (
-  $command,        $ssh_user,         $orig_master_host,
+  $command,        $ssh_user,         $ssh_port, $orig_master_host,
   $orig_master_ip, $orig_master_port, $new_master_host,
   $new_master_ip,  $new_master_port,  $new_master_user,
   $new_master_password
@@ -34,6 +34,7 @@ my (
 GetOptions(
   'command=s'             => \$command,
   'ssh_user=s'            => \$ssh_user,
+  'ssh_port=s'            => \$ssh_port,
   'orig_master_host=s'    => \$orig_master_host,
   'orig_master_ip=s'      => \$orig_master_ip,
   'orig_master_port=i'    => \$orig_master_port,
@@ -115,6 +116,6 @@ sub main {
 
 sub usage {
   print
-"Usage: master_ip_failover --command=start|stop|stopssh|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port\n";
+"Usage: master_ip_failover --command=start|stop|stopssh|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port --ssh_user=user --ssh_port=ssh_port\n";
 }
 
