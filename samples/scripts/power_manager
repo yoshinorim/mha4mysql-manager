@@ -35,6 +35,8 @@ my $DRAC_ADMIN            = 'root';
 my $PASSWORD              = 'xxx';
 my $max_retries           = 10;
 
+$MHA::ManagerConst::SSH_OPT_CHECK =~ s/VAR_CONNECT_TIMEOUT/5/;
+
 exit &main();
 
 sub get_power_status_drac_internal {
