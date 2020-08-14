@@ -642,7 +642,7 @@ sub wait_until_unreachable($) {
       $self->{_tstart} = [gettimeofday];
       if ( $self->{_need_reconnect} ) {
         my ( $rc, $mysql_err ) =
-          $self->connect( undef, undef, undef, undef, undef, $error_count );
+          $self->connect( undef, undef, undef, undef, undef, 0 );
         if ($rc) {
           if ($mysql_err) {
             if (
