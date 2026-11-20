@@ -686,7 +686,8 @@ sub read_all_relay_log {
 
     if ($io_thread_should_run) {
       if (!$status{Slave_IO_State}
-        || $status{Slave_IO_State} !~ m/Waiting for master to send event/ )
+        || $status{Slave_IO_State} !~
+        m/Waiting for (master|source) to send event/ )
       {
         $sql_thread_check = 0;
       }
@@ -705,7 +706,7 @@ sub read_all_relay_log {
           && defined($state) )
         {
           if ( $state =~ m/^Has read all relay log/
-            || $state =~ m/^Slave has read all relay log/ )
+            || $state =~ m/^(Slave|Replica) has read all relay log/ )
           {
             $sql_thread_done = 1;
             if ( $num_worker_threads == 0 ) {
