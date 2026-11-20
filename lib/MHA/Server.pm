@@ -345,7 +345,7 @@ sub read_repl_filter {
 "%s: SHOW SLAVE STATUS returned empty result. To check replication filtering rules, temporarily executing CHANGE MASTER to a dummy host.",
         $self->get_hostinfo() )
     );
-    $dbhelper->execute("CHANGE MASTER TO MASTER_HOST='dummy_host'");
+    $dbhelper->change_master_dummy();
     %status = $dbhelper->check_slave_status(1);
     $log->info(
       sprintf( "%s: Resetting slave pointing to the dummy host.",
