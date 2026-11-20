@@ -24,6 +24,7 @@ use warnings FATAL => 'all';
 
 use English qw(-no_match_vars);
 use MHA::SlaveUtil;
+use MHA::NodeUtil;
 use MHA::ManagerConst;
 use Carp qw(croak);
 use DBI;
@@ -64,6 +65,12 @@ use constant Last_Errno                  => "Last_Errno";
 use constant Last_Error                  => "Last_Error";
 use constant Retrieved_Gtid_Set          => "Retrieved_Gtid_Set";
 use constant Auto_Position               => "Auto_Position";
+
+# WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS() was removed in 8.2
+use constant Executed_Gtid_Wait_Version => "8.2.0";
+
+# relay_log_info_repository was removed in 8.3 (always TABLE)
+use constant Relay_Log_Info_Table_Only_Version => "8.3.0";
 
 use constant Set_Long_Wait_Timeout_SQL => "SET wait_timeout=86400";
 use constant Show_One_Variable_SQL     => "SHOW GLOBAL VARIABLES LIKE ?";
@@ -111,6 +118,8 @@ use constant Master_Pos_Wait_NoTimeout_SQL =>
   "SELECT MASTER_POS_WAIT(?,?,0) AS Result";
 use constant Gtid_Wait_NoTimeout_SQL =>
   "SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,0) AS Result";
+use constant Executed_Gtid_Wait_SQL =>
+  "SELECT WAIT_FOR_EXECUTED_GTID_SET(?,1) AS Result";
 use constant Get_Connection_Id_SQL  => "SELECT CONNECTION_ID() AS Value";
 use constant Flush_Tables_Nolog_SQL => "FLUSH NO_WRITE_TO_BINLOG TABLES";
 use constant Flush_Tables_With_Read_Lock_SQL => "FLUSH TABLES WITH READ LOCK";
@@ -134,6 +143,7 @@ sub new {
     connection_id => undef,
     has_gtid      => undef,
     is_mariadb    => undef,
+    mysql_version => undef,
     @_,
   };
   return bless $self, $class;
@@ -214,6 +224,7 @@ sub connect {
   if ( $self->{dbh} ) {
     $self->{connection_id} = $self->get_connection_id();
     $self->{dbh}->{InactiveDestroy} = 1;
+    $self->{mysql_version} = $self->get_version();
   }
   return $self->{dbh};
 }
@@ -298,10 +309,22 @@ sub get_num_workers($) {
 sub get_version($) {
   my $self  = shift;
   my $value = MHA::SlaveUtil::get_version( $self->{dbh} );
-  if ( $value =~ /MariaDB/ ) {
+  if ( defined($value) && $value =~ /MariaDB/ ) {
     $self->{is_mariadb} = 1;
   }
   return $value;
+}
+
+# Return: 1 if the server is MySQL (not MariaDB) and $compare or higher
+sub mysql_version_ge($$) {
+  my $self    = shift;
+  my $compare = shift;
+  my $version = $self->{mysql_version};
+  return 0 if ( !defined($version) || $self->{is_mariadb} );
+
+  # drop suffixes like "-30" or "-0ubuntu0.22.04.1"
+  return 0 unless ( $version =~ /^(\d+\.\d+\.\d+)/ );
+  return MHA::NodeUtil::mysql_version_ge( $1, $compare );
 }
 
 sub is_relay_log_purge($) {
@@ -316,6 +339,8 @@ sub disable_relay_log_purge($) {
 
 sub get_relay_log_info_type {
   my ( $self, $mysql_version ) = @_;
+  return "TABLE"
+    if ( $self->mysql_version_ge(Relay_Log_Info_Table_Only_Version) );
   return MHA::SlaveUtil::get_relay_log_info_type( $self->{dbh},
     $mysql_version );
 }
@@ -873,10 +898,30 @@ sub master_pos_wait($$$) {
 sub gtid_wait($$) {
   my $self      = shift;
   my $exec_gtid = shift;
-  my $sth       = $self->{dbh}->prepare(Gtid_Wait_NoTimeout_SQL);
+  if ( $self->mysql_version_ge(Executed_Gtid_Wait_Version) ) {
+    return $self->executed_gtid_wait($exec_gtid);
+  }
+  my $sth = $self->{dbh}->prepare(Gtid_Wait_NoTimeout_SQL);
   $sth->execute($exec_gtid);
   my $href = $sth->fetchrow_hashref;
   return $href->{Result};
+}
+
+# Return: 0: OK  undef: error or SQL thread is not running
+sub executed_gtid_wait($$) {
+  my $self      = shift;
+  my $exec_gtid = shift;
+  my $sth       = $self->{dbh}->prepare(Executed_Gtid_Wait_SQL);
+  while (1) {
+    $sth->execute($exec_gtid);
+    my $href = $sth->fetchrow_hashref;
+    return unless ( defined( $href->{Result} ) );
+    return 0 if ( $href->{Result} == 0 );
+
+    # WAIT_FOR_EXECUTED_GTID_SET() keeps waiting even if SQL thread stops
+    my %status = $self->check_slave_status();
+    return if ( $status{Status} || $status{Slave_SQL_Running} ne "Yes" );
+  }
 }
 
 sub _blocked_password {
