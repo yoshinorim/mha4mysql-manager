@@ -24,6 +24,7 @@ use warnings FATAL => 'all';
 
 use English qw(-no_match_vars);
 use MHA::SlaveUtil;
+use MHA::NodeUtil;
 use MHA::ManagerConst;
 use Carp qw(croak);
 use DBI;
@@ -65,6 +66,30 @@ use constant Last_Error                  => "Last_Error";
 use constant Retrieved_Gtid_Set          => "Retrieved_Gtid_Set";
 use constant Auto_Position               => "Auto_Position";
 
+#show replica status output (renamed columns only)
+use constant Replica_Status_Columns => {
+  Slave_IO_State,        "Replica_IO_State",
+  Slave_SQL_Running,     "Replica_SQL_Running",
+  Slave_IO_Running,      "Replica_IO_Running",
+  Master_Log_File,       "Source_Log_File",
+  Master_Host,           "Source_Host",
+  Master_User,           "Source_User",
+  Master_Port,           "Source_Port",
+  Read_Master_Log_Pos,   "Read_Source_Log_Pos",
+  Relay_Master_Log_File, "Relay_Source_Log_File",
+  Exec_Master_Log_Pos,   "Exec_Source_Log_Pos",
+  Seconds_Behind_Master, "Seconds_Behind_Source",
+};
+
+# SLAVE/MASTER statements were removed in 8.4
+use constant Replica_Syntax_Version => "8.4.0";
+
+# WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS() was removed in 8.2
+use constant Executed_Gtid_Wait_Version => "8.2.0";
+
+# relay_log_info_repository was removed in 8.3 (always TABLE)
+use constant Relay_Log_Info_Table_Only_Version => "8.3.0";
+
 use constant Set_Long_Wait_Timeout_SQL => "SET wait_timeout=86400";
 use constant Show_One_Variable_SQL     => "SHOW GLOBAL VARIABLES LIKE ?";
 use constant Change_Master_SQL =>
@@ -78,7 +103,22 @@ use constant Change_Master_Gtid_NoPass_SQL =>
 use constant Reset_Slave_Master_Host_SQL => "RESET SLAVE /*!50516 ALL */";
 use constant Reset_Slave_SQL             => "RESET SLAVE";
 use constant Change_Master_Clear_SQL     => "CHANGE MASTER TO MASTER_HOST=''";
-use constant Show_Slave_Status_SQL       => "SHOW SLAVE STATUS";
+use constant Change_Master_Dummy_SQL =>
+  "CHANGE MASTER TO MASTER_HOST='dummy_host'";
+use constant Show_Slave_Status_SQL => "SHOW SLAVE STATUS";
+use constant Change_Source_SQL =>
+"CHANGE REPLICATION SOURCE TO SOURCE_HOST='%s', SOURCE_PORT=%d, SOURCE_USER='%s', SOURCE_PASSWORD='%s', SOURCE_LOG_FILE='%s', SOURCE_LOG_POS=%d";
+use constant Change_Source_NoPass_SQL =>
+"CHANGE REPLICATION SOURCE TO SOURCE_HOST='%s', SOURCE_PORT=%d, SOURCE_USER='%s', SOURCE_LOG_FILE='%s', SOURCE_LOG_POS=%d";
+use constant Change_Source_Gtid_SQL =>
+"CHANGE REPLICATION SOURCE TO SOURCE_HOST='%s', SOURCE_PORT=%d, SOURCE_USER='%s', SOURCE_PASSWORD='%s', SOURCE_AUTO_POSITION=1";
+use constant Change_Source_Gtid_NoPass_SQL =>
+"CHANGE REPLICATION SOURCE TO SOURCE_HOST='%s', SOURCE_PORT=%d, SOURCE_USER='%s', SOURCE_AUTO_POSITION=1";
+use constant Reset_Replica_Source_Host_SQL => "RESET REPLICA ALL";
+use constant Reset_Replica_SQL             => "RESET REPLICA";
+use constant Change_Source_Dummy_SQL =>
+  "CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy_host'";
+use constant Show_Replica_Status_SQL => "SHOW REPLICA STATUS";
 
 # i_s.processlist was not supported in older versions
 #use constant Show_Processlist_SQLThread_SQL=>"select * from information_schema.processlist where user='system user' and state like 'Has read all relay log%';";
@@ -90,10 +130,19 @@ use constant Start_Slave_SQL        => "START SLAVE";
 use constant Stop_Slave_SQL         => "STOP SLAVE";
 use constant Start_SQL_Thread_SQL   => "START SLAVE SQL_THREAD";
 use constant Stop_SQL_Thread_SQL    => "STOP SLAVE SQL_THREAD";
+use constant Show_Binary_Log_Status_SQL   => "SHOW BINARY LOG STATUS";
+use constant Stop_Replica_IO_Thread_SQL   => "STOP REPLICA IO_THREAD";
+use constant Start_Replica_IO_Thread_SQL  => "START REPLICA IO_THREAD";
+use constant Start_Replica_SQL            => "START REPLICA";
+use constant Stop_Replica_SQL             => "STOP REPLICA";
+use constant Start_Replica_SQL_Thread_SQL => "START REPLICA SQL_THREAD";
+use constant Stop_Replica_SQL_Thread_SQL  => "STOP REPLICA SQL_THREAD";
 use constant Get_Basedir_SQL        => "SELECT \@\@global.basedir AS Value";
 use constant Get_Datadir_SQL        => "SELECT \@\@global.datadir AS Value";
 use constant Get_Num_Workers_SQL =>
   "SELECT \@\@global.slave_parallel_workers AS Value";
+use constant Get_Num_Replica_Workers_SQL =>
+  "SELECT \@\@global.replica_parallel_workers AS Value";
 use constant Get_MaxAllowedPacket_SQL =>
   "SELECT \@\@global.max_allowed_packet AS Value";
 use constant Set_MaxAllowedPacket1G_SQL =>
@@ -111,6 +160,10 @@ use constant Master_Pos_Wait_NoTimeout_SQL =>
   "SELECT MASTER_POS_WAIT(?,?,0) AS Result";
 use constant Gtid_Wait_NoTimeout_SQL =>
   "SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS(?,0) AS Result";
+use constant Source_Pos_Wait_NoTimeout_SQL =>
+  "SELECT SOURCE_POS_WAIT(?,?,0) AS Result";
+use constant Executed_Gtid_Wait_SQL =>
+  "SELECT WAIT_FOR_EXECUTED_GTID_SET(?,1) AS Result";
 use constant Get_Connection_Id_SQL  => "SELECT CONNECTION_ID() AS Value";
 use constant Flush_Tables_Nolog_SQL => "FLUSH NO_WRITE_TO_BINLOG TABLES";
 use constant Flush_Tables_With_Read_Lock_SQL => "FLUSH TABLES WITH READ LOCK";
@@ -129,11 +182,13 @@ use constant Released_New_Password_Regexp => qr/^\*[0-9a-fA-F]{40}$/o;
 sub new {
   my $class = shift;
   my $self  = {
-    dsn           => undef,
-    dbh           => undef,
-    connection_id => undef,
-    has_gtid      => undef,
-    is_mariadb    => undef,
+    dsn            => undef,
+    dbh            => undef,
+    connection_id  => undef,
+    has_gtid       => undef,
+    is_mariadb     => undef,
+    mysql_version  => undef,
+    replica_syntax => undef,
     @_,
   };
   return bless $self, $class;
@@ -214,6 +269,8 @@ sub connect {
   if ( $self->{dbh} ) {
     $self->{connection_id} = $self->get_connection_id();
     $self->{dbh}->{InactiveDestroy} = 1;
+    $self->{mysql_version}  = $self->get_version();
+    $self->{replica_syntax} = $self->mysql_version_ge(Replica_Syntax_Version);
   }
   return $self->{dbh};
 }
@@ -292,16 +349,32 @@ sub get_datadir($) {
 
 sub get_num_workers($) {
   my $self = shift;
-  return $self->get_variable(Get_Num_Workers_SQL);
+  return $self->get_variable(
+    $self->{replica_syntax}
+    ? Get_Num_Replica_Workers_SQL
+    : Get_Num_Workers_SQL
+  );
 }
 
 sub get_version($) {
   my $self  = shift;
   my $value = MHA::SlaveUtil::get_version( $self->{dbh} );
-  if ( $value =~ /MariaDB/ ) {
+  if ( defined($value) && $value =~ /MariaDB/ ) {
     $self->{is_mariadb} = 1;
   }
   return $value;
+}
+
+# Return: 1 if the server is MySQL (not MariaDB) and $compare or higher
+sub mysql_version_ge($$) {
+  my $self    = shift;
+  my $compare = shift;
+  my $version = $self->{mysql_version};
+  return 0 if ( !defined($version) || $self->{is_mariadb} );
+
+  # drop suffixes like "-30" or "-0ubuntu0.22.04.1"
+  return 0 unless ( $version =~ /^(\d+\.\d+\.\d+)/ );
+  return MHA::NodeUtil::mysql_version_ge( $1, $compare );
 }
 
 sub is_relay_log_purge($) {
@@ -316,6 +389,8 @@ sub disable_relay_log_purge($) {
 
 sub get_relay_log_info_type {
   my ( $self, $mysql_version ) = @_;
+  return "TABLE"
+    if ( $self->mysql_version_ge(Relay_Log_Info_Table_Only_Version) );
   return MHA::SlaveUtil::get_relay_log_info_type( $self->{dbh},
     $mysql_version );
 }
@@ -352,8 +427,11 @@ sub show_master_status($) {
   my $self = shift;
   my ( $query, $sth, $href );
   my %values;
-  $query = Show_Master_Status_SQL;
-  $sth   = $self->{dbh}->prepare($query);
+  $query =
+    $self->{replica_syntax}
+    ? Show_Binary_Log_Status_SQL
+    : Show_Master_Status_SQL;
+  $sth = $self->{dbh}->prepare($query);
   my $ret = $sth->execute();
   return if ( !defined($ret) || $ret != 1 );
 
@@ -439,12 +517,25 @@ sub set_long_wait_timeout($) {
 
 sub reset_slave_master_host($) {
   my $self = shift;
-  return $self->execute(Reset_Slave_Master_Host_SQL);
+  return $self->execute(
+    $self->{replica_syntax}
+    ? Reset_Replica_Source_Host_SQL
+    : Reset_Slave_Master_Host_SQL
+  );
 }
 
 sub reset_slave_by_change_master($) {
   my $self = shift;
   return $self->execute(Change_Master_Clear_SQL);
+}
+
+sub change_master_dummy($) {
+  my $self = shift;
+  return $self->execute(
+    $self->{replica_syntax}
+    ? Change_Source_Dummy_SQL
+    : Change_Master_Dummy_SQL
+  );
 }
 
 sub change_master($$$$$$$) {
@@ -458,13 +549,17 @@ sub change_master($$$$$$$) {
 
   my $query;
   if ($master_password) {
-    $query = sprintf( Change_Master_SQL,
+    $query = sprintf(
+      $self->{replica_syntax} ? Change_Source_SQL : Change_Master_SQL,
       $master_host,     $master_port,     $master_user,
-      $master_password, $master_log_file, $master_log_pos );
+      $master_password, $master_log_file, $master_log_pos
+    );
   }
   else {
     $query = sprintf(
-      Change_Master_NoPass_SQL,
+      $self->{replica_syntax}
+      ? Change_Source_NoPass_SQL
+      : Change_Master_NoPass_SQL,
       $master_host,     $master_port, $master_user,
       $master_log_file, $master_log_pos
     );
@@ -480,12 +575,20 @@ sub change_master_gtid($$$$$) {
   my $master_password = shift;
   my $query;
   if ($master_password) {
-    $query = sprintf( Change_Master_Gtid_SQL,
-      $master_host, $master_port, $master_user, $master_password );
+    $query = sprintf(
+      $self->{replica_syntax}
+      ? Change_Source_Gtid_SQL
+      : Change_Master_Gtid_SQL,
+      $master_host, $master_port, $master_user, $master_password
+    );
   }
   else {
-    $query = sprintf( Change_Master_Gtid_NoPass_SQL,
-      $master_host, $master_port, $master_user );
+    $query = sprintf(
+      $self->{replica_syntax}
+      ? Change_Source_Gtid_NoPass_SQL
+      : Change_Master_Gtid_NoPass_SQL,
+      $master_host, $master_port, $master_user
+    );
   }
   return $self->execute($query);
 }
@@ -522,37 +625,56 @@ sub disable_read_only($) {
 
 sub reset_slave($) {
   my $self = shift;
-  return $self->execute(Reset_Slave_SQL);
+  return $self->execute(
+    $self->{replica_syntax} ? Reset_Replica_SQL : Reset_Slave_SQL );
 }
 
 sub start_io_thread($) {
   my $self = shift;
-  return $self->execute(Start_IO_Thread_SQL);
+  return $self->execute(
+    $self->{replica_syntax}
+    ? Start_Replica_IO_Thread_SQL
+    : Start_IO_Thread_SQL
+  );
 }
 
 sub stop_io_thread($) {
   my $self = shift;
-  return $self->execute(Stop_IO_Thread_SQL);
+  return $self->execute(
+    $self->{replica_syntax}
+    ? Stop_Replica_IO_Thread_SQL
+    : Stop_IO_Thread_SQL
+  );
 }
 
 sub start_slave() {
   my $self = shift;
-  return $self->execute(Start_Slave_SQL);
+  return $self->execute(
+    $self->{replica_syntax} ? Start_Replica_SQL : Start_Slave_SQL );
 }
 
 sub start_sql_thread() {
   my $self = shift;
-  return $self->execute(Start_SQL_Thread_SQL);
+  return $self->execute(
+    $self->{replica_syntax}
+    ? Start_Replica_SQL_Thread_SQL
+    : Start_SQL_Thread_SQL
+  );
 }
 
 sub stop_sql_thread() {
   my $self = shift;
-  return $self->execute(Stop_SQL_Thread_SQL);
+  return $self->execute(
+    $self->{replica_syntax}
+    ? Stop_Replica_SQL_Thread_SQL
+    : Stop_SQL_Thread_SQL
+  );
 }
 
 sub stop_slave() {
   my $self = shift;
-  return $self->execute(Stop_Slave_SQL);
+  return $self->execute(
+    $self->{replica_syntax} ? Stop_Replica_SQL : Stop_Slave_SQL );
 }
 
 sub uniq_and_sort {
@@ -576,8 +698,9 @@ sub check_slave_status {
     return %status;
   }
 
-  $query = Show_Slave_Status_SQL;
-  $sth   = $self->{dbh}->prepare($query);
+  $query =
+    $self->{replica_syntax} ? Show_Replica_Status_SQL : Show_Slave_Status_SQL;
+  $sth = $self->{dbh}->prepare($query);
   my $ret = $sth->execute();
   if ( !defined($ret) || $ret != 1 ) {
 
@@ -588,15 +711,18 @@ sub check_slave_status {
     if ( defined( $sth->errstr ) ) {
       $status{Status} = 2;
       $status{Errstr} =
-          "Got error when executing "
-        . Show_Slave_Status_SQL . ". "
-        . $sth->errstr;
+        "Got error when executing " . $query . ". " . $sth->errstr;
     }
     return %status;
   }
 
   $status{Status} = 0;
   $href = $sth->fetchrow_hashref;
+  if ( $self->{replica_syntax} ) {
+    foreach my $key ( keys %{ +Replica_Status_Columns } ) {
+      $href->{$key} = $href->{ Replica_Status_Columns->{$key} };
+    }
+  }
 
   for my $key (
     Slave_IO_State,        Master_Host,
@@ -686,7 +812,8 @@ sub read_all_relay_log {
 
     if ($io_thread_should_run) {
       if (!$status{Slave_IO_State}
-        || $status{Slave_IO_State} !~ m/Waiting for master to send event/ )
+        || $status{Slave_IO_State} !~
+        m/Waiting for (master|source) to send event/ )
       {
         $sql_thread_check = 0;
       }
@@ -705,7 +832,7 @@ sub read_all_relay_log {
           && defined($state) )
         {
           if ( $state =~ m/^Has read all relay log/
-            || $state =~ m/^Slave has read all relay log/ )
+            || $state =~ m/^(Slave|Replica) has read all relay log/ )
           {
             $sql_thread_done = 1;
             if ( $num_worker_threads == 0 ) {
@@ -863,7 +990,11 @@ sub master_pos_wait($$$) {
   my $self        = shift;
   my $binlog_file = shift;
   my $binlog_pos  = shift;
-  my $sth         = $self->{dbh}->prepare(Master_Pos_Wait_NoTimeout_SQL);
+  my $sth         = $self->{dbh}->prepare(
+    $self->{replica_syntax}
+    ? Source_Pos_Wait_NoTimeout_SQL
+    : Master_Pos_Wait_NoTimeout_SQL
+  );
   $sth->execute( $binlog_file, $binlog_pos );
   my $href = $sth->fetchrow_hashref;
   return $href->{Result};
@@ -872,10 +1003,30 @@ sub master_pos_wait($$$) {
 sub gtid_wait($$) {
   my $self      = shift;
   my $exec_gtid = shift;
-  my $sth       = $self->{dbh}->prepare(Gtid_Wait_NoTimeout_SQL);
+  if ( $self->mysql_version_ge(Executed_Gtid_Wait_Version) ) {
+    return $self->executed_gtid_wait($exec_gtid);
+  }
+  my $sth = $self->{dbh}->prepare(Gtid_Wait_NoTimeout_SQL);
   $sth->execute($exec_gtid);
   my $href = $sth->fetchrow_hashref;
   return $href->{Result};
+}
+
+# Return: 0: OK  undef: error or SQL thread is not running
+sub executed_gtid_wait($$) {
+  my $self      = shift;
+  my $exec_gtid = shift;
+  my $sth       = $self->{dbh}->prepare(Executed_Gtid_Wait_SQL);
+  while (1) {
+    $sth->execute($exec_gtid);
+    my $href = $sth->fetchrow_hashref;
+    return unless ( defined( $href->{Result} ) );
+    return 0 if ( $href->{Result} == 0 );
+
+    # WAIT_FOR_EXECUTED_GTID_SET() keeps waiting even if SQL thread stops
+    my %status = $self->check_slave_status();
+    return if ( $status{Status} || $status{Slave_SQL_Running} ne "Yes" );
+  }
 }
 
 sub _blocked_password {
