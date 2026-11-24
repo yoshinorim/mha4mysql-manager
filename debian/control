@@ -1,7 +1,7 @@
 Source: mha4mysql-manager
 Section: perl
 Priority: optional
-Build-Depends: debhelper (>= 7.2.13)
+Build-Depends: debhelper (>= 7.2.13), libmodule-install-perl
 Build-Depends-Indep: perl
 Maintainer: Yoshinori Matsunobu <Yoshinori.Matsunobu@gmail.com>
 Standards-Version: 3.9.1
