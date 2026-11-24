@@ -28,6 +28,7 @@ use MHA::DBHelper;
 use MHA::Server;
 use MHA::ManagerConst;
 use Parallel::ForkManager;
+use Tie::RefHash;
 
 sub new {
   my $class = shift;
@@ -982,6 +983,8 @@ sub identify_latest_slaves($$) {
   my $log    = $self->{logger};
   my @slaves = $self->get_alive_slaves();
   my @latest = ();
+  my %latest_slave ;
+  tie %latest_slave, 'Tie::RefHash';  
   foreach (@slaves) {
     my $a = $latest[0]{Master_Log_File};
     my $b = $latest[0]{Read_Master_Log_Pos};
@@ -995,8 +998,8 @@ sub identify_latest_slaves($$) {
       )
       )
     {
-      @latest = ();
-      push( @latest, $_ );
+      $exec_master_diff = $_->{Read_Master_Log_Pos} - $_->{Exec_Master_Log_Pos};
+      $latest_slave{$_} = $exec_master_diff;
     }
     elsif (
       $find_oldest
@@ -1008,15 +1011,22 @@ sub identify_latest_slaves($$) {
       )
       )
     {
-      @latest = ();
-      push( @latest, $_ );
+      $exec_master_diff = $_->{Read_Master_Log_Pos} - $_->{Exec_Master_Log_Pos};
+      $latest_slave{$_} = $exec_master_diff;
     }
     elsif ( ( $_->{Master_Log_File} eq $latest[0]{Master_Log_File} )
       && ( $_->{Read_Master_Log_Pos} == $latest[0]{Read_Master_Log_Pos} ) )
     {
-      push( @latest, $_ );
+      $exec_master_diff = $_->{Read_Master_Log_Pos} - $_->{Exec_Master_Log_Pos};
+      $latest_slave{$_} = $exec_master_diff;
     }
   }
+  
+  @latest=();
+  foreach (sort { $latest_slave{$b} <=> $latest_slave{$a} } keys %latest_slave){
+        push( @latest, $_ );
+  }
+  @latest = reverse(@latest);  
   foreach (@latest) {
     $_->{latest} = 1 if ( !$find_oldest );
     $_->{oldest} = 1 if ($find_oldest);
