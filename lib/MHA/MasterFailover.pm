@@ -1418,8 +1418,15 @@ sub recover_slave {
 sub apply_binlog_to_master($) {
   my $target   = shift;
   my $err_file = "$g_workdir/mysql_from_binlog.err";
+  #在GTID模式下只能是少丢，原失处理的GTID日志重放会报错
+  if ($is_gtid_auto_pos_enabled){
   my $command =
-"cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+  "mysqlbinlog $_diff_binary_log | mysql -f --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+  }else{
+        my $command =
+  "cat $_diff_binary_log | mysql --binary-mode --user=$target->{mysql_escaped_user} --password=$target->{mysql_escaped_password} --host=$target->{ip} --port=$target->{port} -vvv --unbuffered > $err_file 2>&1";
+ }
+
 
   $log->info("Checking if super_read_only is defined and turned on..");
   my ($super_read_only_enabled, $dbh) = 
@@ -1512,7 +1519,10 @@ sub recover_master_gtid_internal($$$) {
     $relay_master_log_file = $target->{Relay_Master_Log_File};
     $exec_master_log_pos   = $target->{Exec_Master_Log_Pos};
   }
-  if (
+#first use master binlog to recover new master
+  if ($_has_saved_binlog){
+    apply_binlog_to_master($target);
+ }elsif(
     save_from_binlog_server(
       $relay_master_log_file, $exec_master_log_pos, $binlog_server_ref
     )
@@ -2127,13 +2137,13 @@ sub do_master_failover {
     $log->info("* Phase 3.1: Getting Latest Slaves Phase..\n");
     $log->info();
     check_set_latest_slaves();
-
-    if ( !$_server_manager->is_gtid_auto_pos_enabled() ) {
+#gtid mode maybe save binlog from master add  wubx@zhishutang.com
+#    if ( !$_server_manager->is_gtid_auto_pos_enabled() ) {
       $log->info();
       $log->info("* Phase 3.2: Saving Dead Master's Binlog Phase..\n");
       $log->info();
       save_master_binlog($dead_master);
-    }
+#    }
 
     $log->info();
     $log->info("* Phase 3.3: Determining New Master Phase..\n");
