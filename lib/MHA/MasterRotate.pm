@@ -49,6 +49,7 @@ my $g_running_updates_limit = 1;
 my $g_running_seconds_limit = 10;
 my $g_seconds_behind_master = 30;
 my $g_skip_lock_all_tables;
+my $g_skip_disable_read_only;
 my $g_remove_orig_master_conf;
 my $g_interactive = 1;
 my $_server_manager;
@@ -434,7 +435,10 @@ sub switch_master($$$$) {
   }
 
   # Allow write access on master (if read_only==1)
-  $new_master->disable_read_only();
+  unless ($g_skip_disable_read_only) {
+    $log->info("Disabling read only at the new master");
+    $new_master->disable_read_only();
+  }
 
   return ( $master_log_file, $master_log_pos );
 }
@@ -721,6 +725,7 @@ sub main {
     'running_seconds_limit=i'  => \$g_running_seconds_limit,
     'seconds_behind_master=i'  => \$g_seconds_behind_master,
     'skip_lock_all_tables'     => \$g_skip_lock_all_tables,
+    'skip_disable_read_only'   => \$g_skip_disable_read_only,
     'remove_dead_master_conf'  => \$g_remove_orig_master_conf,
     'remove_orig_master_conf'  => \$g_remove_orig_master_conf,
     'flush_tables=i'           => \$g_flush_tables,
@@ -742,4 +747,3 @@ sub main {
 }
 
 1;
-
