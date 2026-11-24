@@ -8,7 +8,13 @@ Group: Manager
 URL: http://code.google.com/p/mysql-master-ha/
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildArch: noarch
+BuildRequires: perl(Config::Tiny)
+BuildRequires: perl(Log::Dispatch)
+BuildRequires: perl(Parallel::ForkManager)
+BuildRequires: perl(DBD::mysql)
 BuildRequires: perl(ExtUtils::MakeMaker) >= 6.30
+BuildRequires: perl(Module::Install)
+BuildRequires: mha4mysql-node > 0.54
 Requires: perl(Config::Tiny)
 Requires: perl(Log::Dispatch)
 Requires: perl(Parallel::ForkManager)
